@@ -26,16 +26,45 @@ def get_firestore_client():
     if _db is not None:
         return _db
 
+    import glob
+    import json
+
     project_id = os.getenv("FIREBASE_PROJECT_ID")
     client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
     private_key = os.getenv("FIREBASE_PRIVATE_KEY")
     emulator_host = os.getenv("FIRESTORE_EMULATOR_HOST")
 
+    # Auto-detect local service account JSON if present in root or backend
+    cred_file = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    if not cred_file or not os.path.exists(cred_file):
+        candidates = (
+            glob.glob("*.json") +
+            glob.glob("backend/*.json") +
+            glob.glob("../*.json")
+        )
+        for c in candidates:
+            if "adminsdk" in c.lower() or "firebase" in c.lower() and not c.endswith("firebase.json"):
+                cred_file = c
+                break
+
+    # If cred_file found, extract project_id, client_email, private_key
+    if cred_file and os.path.exists(cred_file):
+        try:
+            with open(cred_file, "r") as f:
+                cdata = json.load(f)
+                if cdata.get("type") == "service_account":
+                    project_id = project_id or cdata.get("project_id")
+                    client_email = client_email or cdata.get("client_email")
+                    private_key = private_key or cdata.get("private_key")
+                    logger.info(f"Detected Firebase service account file: {cred_file} (Project: {project_id})")
+        except Exception as e:
+            logger.warning(f"Error reading credential file {cred_file}: {e}")
+
     if private_key:
         # Normalize escaped newlines in environment variable
         private_key = private_key.replace("\\n", "\n")
 
-    if emulator_host or (project_id and client_email and private_key):
+    if emulator_host or (cred_file and os.path.exists(cred_file)) or (project_id and client_email and private_key):
         try:
             import firebase_admin
             from firebase_admin import credentials, firestore
@@ -46,6 +75,10 @@ def get_firestore_client():
                     _firebase_app = firebase_admin.initialize_app(
                         options={"projectId": project_id or "venturelens-ai-demo"}
                     )
+                elif cred_file and os.path.exists(cred_file):
+                    logger.info(f"Initializing Firebase Admin with certificate: {cred_file}")
+                    cred = credentials.Certificate(cred_file)
+                    _firebase_app = firebase_admin.initialize_app(cred)
                 else:
                     logger.info(f"Initializing Firebase Admin with project: {project_id}")
                     cred = credentials.Certificate({
@@ -57,15 +90,37 @@ def get_firestore_client():
                     })
                     _firebase_app = firebase_admin.initialize_app(cred)
 
-            _db = firestore.client()
-            _is_fallback = False
-            logger.info("Successfully connected to live Firebase Firestore.")
-            return _db
+            client = firestore.client()
+            
+            # Verify live connectivity
+            try:
+                # Attempt to query collections to ensure Firestore API is enabled
+                list(client.collections())
+                _db = client
+                _is_fallback = False
+                logger.info("Successfully connected to live Firebase Firestore.")
+                return _db
+            except Exception as conn_err:
+                err_str = str(conn_err)
+                if "Cloud Firestore API has not been used" in err_str or "SERVICE_DISABLED" in err_str:
+                    logger.warning(
+                        "\n" + "="*80 + "\n"
+                        f"[FIREBASE ACTION REQUIRED] Cloud Firestore API is disabled for project '{project_id}'.\n"
+                        f"Please enable Firestore Database by visiting:\n"
+                        f"https://console.firebase.google.com/project/{project_id}/firestore\n"
+                        f"OR\n"
+                        f"https://console.developers.google.com/apis/api/firestore.googleapis.com/overview?project={project_id}\n"
+                        "Click 'Create Database' / 'Enable' in the Firebase Console.\n"
+                        "Operating in local in-memory fallback mode until Firestore is enabled.\n"
+                        + "="*80 + "\n"
+                    )
+                else:
+                    logger.warning(f"Firestore connectivity check failed ({conn_err}). Engaging in-memory fallback.")
         except Exception as e:
             logger.warning(f"Failed to connect to Firebase Admin SDK ({e}). Enabling local in-memory fallback store.")
 
     # Graceful In-Memory Firestore Emulator Fallback
-    logger.info("Operating in Local In-Memory Firestore Mode (No cloud credentials provided).")
+    logger.info("Operating in Local In-Memory Firestore Mode.")
     _is_fallback = True
     _db = InMemoryFirestore()
     return _db
