@@ -11,7 +11,7 @@ export function getApiBaseUrl(): string {
     const saved = localStorage.getItem("venturelens_api_url");
     if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
   }
-  return (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+  return (process.env.NEXT_PUBLIC_API_URL || "https://ffm-cie-2.onrender.com").replace(/\/+$/, "");
 }
 
 export function setApiBaseUrl(url: string): void {
