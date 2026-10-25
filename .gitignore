@@ -49,6 +49,8 @@ yarn-error.log*
 serviceAccountKey.json
 firebase-credentials.json
 firebase-key.json
+*-firebase-adminsdk-*.json
+*adminsdk*.json
 kaggle.json
 
 # IDE / OS
