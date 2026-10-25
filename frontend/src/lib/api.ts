@@ -6,53 +6,76 @@ import {
   MLMetrics,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("venturelens_api_url");
+    if (saved && saved.trim()) return saved.trim().replace(/\/+$/, "");
+  }
+  return (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+}
 
-export async function fetchHealth() {
-  const res = await fetch(`${API_BASE}/api/health`);
+export function setApiBaseUrl(url: string): void {
+  if (typeof window !== "undefined") {
+    if (url && url.trim()) {
+      localStorage.setItem("venturelens_api_url", url.trim().replace(/\/+$/, ""));
+    } else {
+      localStorage.removeItem("venturelens_api_url");
+    }
+  }
+}
+
+export async function fetchHealth(): Promise<{ status: string; service: string; database?: string }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/health`, { method: "GET" });
+  if (!res.ok) throw new Error(`Health check failed with status ${res.status}`);
   return res.json();
 }
 
 export async function fetchMetadata(): Promise<MLMetrics> {
-  const res = await fetch(`${API_BASE}/api/metadata`);
-  if (!res.ok) throw new Error("Failed to fetch ML metrics");
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/metadata`, { method: "GET" });
+  if (!res.ok) throw new Error("Failed to fetch ML metrics from backend");
   return res.json();
 }
 
 export async function saveCompany(data: Partial<CompanyData>): Promise<CompanyData> {
-  const res = await fetch(`${API_BASE}/api/company`, {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/company`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Failed to save company" }));
-    throw new Error(err.detail || "Failed to save company");
+    throw new Error(err.detail || "Failed to save company in Firestore");
   }
   return res.json();
 }
 
 export async function fetchCompany(companyId: string): Promise<CompanyData> {
-  const res = await fetch(`${API_BASE}/api/company/${companyId}`);
-  if (!res.ok) throw new Error("Company not found");
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/company/${companyId}`);
+  if (!res.ok) throw new Error("Company not found in Firestore");
   return res.json();
 }
 
 export async function saveProject(data: Partial<ProjectData>): Promise<ProjectData> {
-  const res = await fetch(`${API_BASE}/api/project`, {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/project`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Failed to save project" }));
-    throw new Error(err.detail || "Failed to save project");
+    throw new Error(err.detail || "Failed to save project in Firestore");
   }
   return res.json();
 }
 
 export async function fetchProjects(companyId: string): Promise<ProjectData[]> {
-  const res = await fetch(`${API_BASE}/api/projects/${companyId}`);
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/projects/${companyId}`);
   if (!res.ok) return [];
   return res.json();
 }
@@ -61,11 +84,12 @@ export async function uploadProjectsFile(
   companyId: string,
   file: File
 ): Promise<{ uploaded_count: number; projects: ProjectData[]; warnings?: string[] }> {
+  const base = getApiBaseUrl();
   const formData = new FormData();
   formData.append("company_id", companyId);
   formData.append("file", file);
 
-  const res = await fetch(`${API_BASE}/api/upload-projects`, {
+  const res = await fetch(`${base}/api/upload-projects`, {
     method: "POST",
     body: formData,
   });
@@ -80,7 +104,8 @@ export async function uploadProjectsFile(
 export async function analyzeProjects(
   companyId: string
 ): Promise<{ company: CompanyData; projects: ProjectFinancials[] }> {
-  const res = await fetch(`${API_BASE}/api/analyze`, {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ company_id: companyId }),
@@ -100,7 +125,8 @@ export async function optimizePortfolio(
     override_discount_rate?: number;
   }
 ): Promise<OptimizationResult> {
-  const res = await fetch(`${API_BASE}/api/optimize`, {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/optimize`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ company_id: companyId, ...overrides }),
@@ -113,7 +139,8 @@ export async function optimizePortfolio(
 }
 
 export async function fetchRunHistory(companyId: string): Promise<OptimizationResult[]> {
-  const res = await fetch(`${API_BASE}/api/runs/${companyId}`);
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/runs/${companyId}`);
   if (!res.ok) return [];
   return res.json();
 }

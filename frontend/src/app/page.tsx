@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Hero } from "@/components/Hero";
+import { BackendStatusBanner } from "@/components/BackendStatusBanner";
 import { CompanySetup } from "@/components/CompanySetup";
 import { ProjectBuilder } from "@/components/ProjectBuilder";
 import { ProjectAnalysisCards } from "@/components/ProjectAnalysisCards";
@@ -26,88 +27,8 @@ import {
   OptimizationResult,
   MLMetrics,
 } from "@/lib/types";
-import {
-  buildFallbackAnalysis,
-  buildFallbackOptimization,
-} from "@/lib/calculator";
 
 const DEFAULT_COMPANY_ID = "venture_company_01";
-
-const DEFAULT_METRICS: MLMetrics = {
-  dataset_slug: "manishkc06/startup-success-prediction",
-  dataset_name: "Startup Success Prediction (Real Historical Data)",
-  train_samples: 738,
-  test_samples: 185,
-  features: [
-    "funding_rounds",
-    "milestones",
-    "relationships",
-    "age_last_funding_year",
-    "avg_participants",
-    "is_software",
-    "is_enterprise",
-    "is_biotech",
-    "is_ecommerce",
-  ],
-  revenue_confidence_model: {
-    algorithm: "RandomForestRegressor",
-    r2_score: 0.8678,
-    mae: 0.0437,
-    rmse: 0.0556,
-  },
-  risk_classifier_model: {
-    algorithm: "RandomForestClassifier",
-    accuracy: 0.7784,
-    precision: 0.8015,
-    recall: 0.8750,
-    f1_score: 0.8367,
-    roc_auc: 0.8176,
-  },
-  disclaimer: "ML predictions are estimates based on historical data, not guaranteed returns.",
-};
-
-const SPEC_PROJECTS: ProjectData[] = [
-  {
-    project_id: "proj_solar",
-    company_id: DEFAULT_COMPANY_ID,
-    name: "Solar installation",
-    initial_cost: 800000,
-    cash_flows: [300000, 300000, 300000, 300000, 300000],
-    duration_years: 5,
-    risk_category: "Medium",
-    industry_category: "CleanTech",
-  },
-  {
-    project_id: "proj_recycling",
-    company_id: DEFAULT_COMPANY_ID,
-    name: "Recycling unit",
-    initial_cost: 600000,
-    cash_flows: [250000, 250000, 250000, 250000, 250000],
-    duration_years: 5,
-    risk_category: "Medium",
-    industry_category: "Environmental",
-  },
-  {
-    project_id: "proj_software",
-    company_id: DEFAULT_COMPANY_ID,
-    name: "Software product",
-    initial_cost: 500000,
-    cash_flows: [240000, 240000, 240000, 240000, 240000],
-    duration_years: 5,
-    risk_category: "High",
-    industry_category: "Software",
-  },
-  {
-    project_id: "proj_energy",
-    company_id: DEFAULT_COMPANY_ID,
-    name: "Energy-efficient equipment",
-    initial_cost: 400000,
-    cash_flows: [180000, 180000, 180000, 180000, 180000],
-    duration_years: 5,
-    risk_category: "Low",
-    industry_category: "Energy",
-  },
-];
 
 export default function Home() {
   const [company, setCompany] = useState<CompanyData>({
@@ -124,186 +45,122 @@ export default function Home() {
   const [analyzedProjects, setAnalyzedProjects] = useState<ProjectFinancials[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
   const [runHistory, setRunHistory] = useState<OptimizationResult[]>([]);
-  const [metadata, setMetadata] = useState<MLMetrics>(DEFAULT_METRICS);
+  const [metadata, setMetadata] = useState<MLMetrics | null>(null);
 
   const [loadingCompany, setLoadingCompany] = useState<boolean>(false);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  // Initialize data on mount
-  useEffect(() => {
-    async function init() {
-      try {
-        const meta = await fetchMetadata().catch(() => null);
-        if (meta && meta.revenue_confidence_model) {
-          setMetadata(meta);
-        }
+  const loadDataFromBackend = useCallback(async () => {
+    setActionError(null);
+    try {
+      const meta = await fetchMetadata().catch(() => null);
+      if (meta) setMetadata(meta);
 
-        const existingComp = await fetchCompany(DEFAULT_COMPANY_ID).catch(() => null);
-        if (existingComp) {
-          setCompany(existingComp);
-        }
-
-        const existingProjects = await fetchProjects(DEFAULT_COMPANY_ID).catch(() => []);
-        if (existingProjects && existingProjects.length > 0) {
-          setProjects(existingProjects);
-        }
-
-        const pastRuns = await fetchRunHistory(DEFAULT_COMPANY_ID).catch(() => []);
-        if (pastRuns && pastRuns.length > 0) {
-          setRunHistory(pastRuns);
-          setOptimizationResult(pastRuns[0]);
-        }
-      } catch (e) {
-        console.warn("API initialization fallback active:", e);
+      const existingComp = await fetchCompany(DEFAULT_COMPANY_ID).catch(() => null);
+      if (existingComp) {
+        setCompany(existingComp);
       }
+
+      const existingProjects = await fetchProjects(DEFAULT_COMPANY_ID).catch(() => []);
+      if (existingProjects && existingProjects.length > 0) {
+        setProjects(existingProjects);
+      }
+
+      const pastRuns = await fetchRunHistory(DEFAULT_COMPANY_ID).catch(() => []);
+      if (pastRuns && pastRuns.length > 0) {
+        setRunHistory(pastRuns);
+        setOptimizationResult(pastRuns[0]);
+      }
+    } catch (err: any) {
+      console.warn("Could not fetch initial data from backend:", err);
     }
-    init();
   }, []);
 
-  // Save company updates
+  useEffect(() => {
+    loadDataFromBackend();
+  }, [loadDataFromBackend]);
+
+  // Real Backend: Save company updates to Firestore
   const handleSaveCompany = async (updated: Partial<CompanyData>) => {
     setLoadingCompany(true);
+    setActionError(null);
     try {
-      const saved = await saveCompany(updated).catch(() => ({
-        ...company,
-        ...updated,
-      } as CompanyData));
+      const saved = await saveCompany(updated);
       setCompany(saved);
+    } catch (err: any) {
+      setActionError(`Failed to save company in Firestore: ${err.message}`);
+      throw err;
     } finally {
       setLoadingCompany(false);
     }
   };
 
-  // Add individual project
+  // Real Backend: Save project to Firestore under company
   const handleAddProject = async (proj: Partial<ProjectData>) => {
+    setActionError(null);
     try {
       const saved = await saveProject({
         ...proj,
         company_id: company.company_id,
-      }).catch(() => ({
-        ...proj,
-        project_id: `proj_${Math.random().toString(16).substring(2, 10)}`,
-        company_id: company.company_id,
-      } as ProjectData));
+      });
       setProjects((prev) => [...prev, saved]);
-    } catch {
-      const localP: ProjectData = {
-        name: proj.name || "Initiative",
-        initial_cost: proj.initial_cost || 500000,
-        cash_flows: proj.cash_flows || [150000],
-        risk_category: proj.risk_category || "Medium",
-        industry_category: proj.industry_category || "General",
-        duration_years: proj.duration_years || 5,
-        project_id: `proj_${Math.random().toString(16).substring(2, 10)}`,
-        company_id: company.company_id,
-      };
-      setProjects((prev) => [...prev, localP]);
+    } catch (err: any) {
+      setActionError(`Failed to register project in Firestore: ${err.message}`);
+      throw err;
     }
   };
 
-  // Upload CSV/Excel
+  // Real Backend: Upload CSV to Backend for pandas cleaning and bulk Firestore write
   const handleUploadFile = async (file: File) => {
+    setActionError(null);
     try {
       const res = await uploadProjectsFile(company.company_id, file);
       if (res.projects && res.projects.length > 0) {
         setProjects((prev) => [...prev, ...res.projects]);
       }
-    } catch (e: any) {
-      alert(`Upload error: ${e.message || "Failed to upload file."}`);
+    } catch (err: any) {
+      setActionError(`CSV Upload and Preprocessing failed: ${err.message}`);
+      throw err;
     }
   };
 
-  // Run Financial + ML Analysis
+  // Real Backend: Execute financial analysis & ML inference on real models
   const handleTriggerAnalysis = async () => {
     setIsAnalyzing(true);
+    setActionError(null);
     try {
-      // Try backend first
-      const res = await analyzeProjects(company.company_id).catch(() => null);
-      if (res && res.projects && res.projects.length > 0) {
-        setAnalyzedProjects(res.projects);
-      } else {
-        // High-fidelity fallback calculation
-        const localAnalysis = buildFallbackAnalysis(
-          projects,
-          company.discount_rate,
-          company.total_investment_budget,
-          company.min_cash_reserve,
-          company.loan_facility
-        );
-        setAnalyzedProjects(localAnalysis);
-      }
-    } catch {
-      const localAnalysis = buildFallbackAnalysis(
-        projects,
-        company.discount_rate,
-        company.total_investment_budget,
-        company.min_cash_reserve,
-        company.loan_facility
-      );
-      setAnalyzedProjects(localAnalysis);
+      const res = await analyzeProjects(company.company_id);
+      setAnalyzedProjects(res.projects);
+    } catch (err: any) {
+      setActionError(`Financial & ML Analysis failed: ${err.message}`);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Run PuLP Portfolio Optimization
+  // Real Backend: Execute PuLP mathematical optimization and persist run in Firestore
   const handleRunOptimization = async () => {
     setIsOptimizing(true);
+    setActionError(null);
     try {
-      const res = await optimizePortfolio(company.company_id).catch(() => null);
-      if (res) {
-        setOptimizationResult(res);
-        const runs = await fetchRunHistory(company.company_id).catch(() => []);
-        if (runs.length > 0) setRunHistory(runs);
-      } else {
-        // High-fidelity fallback optimization
-        const currentFinancials =
-          analyzedProjects.length > 0
-            ? analyzedProjects
-            : buildFallbackAnalysis(
-                projects,
-                company.discount_rate,
-                company.total_investment_budget,
-                company.min_cash_reserve,
-                company.loan_facility
-              );
-        const localOpt = buildFallbackOptimization(
-          currentFinancials,
-          company.total_investment_budget,
-          company.min_cash_reserve,
-          company.max_acceptable_risk
-        );
-        setOptimizationResult(localOpt);
-        setRunHistory((prev) => [localOpt, ...prev]);
-      }
-    } catch {
-      const currentFinancials =
-        analyzedProjects.length > 0
-          ? analyzedProjects
-          : buildFallbackAnalysis(
-              projects,
-              company.discount_rate,
-              company.total_investment_budget,
-              company.min_cash_reserve,
-              company.loan_facility
-            );
-      const localOpt = buildFallbackOptimization(
-        currentFinancials,
-        company.total_investment_budget,
-        company.min_cash_reserve,
-        company.max_acceptable_risk
-      );
-      setOptimizationResult(localOpt);
-      setRunHistory((prev) => [localOpt, ...prev]);
+      const res = await optimizePortfolio(company.company_id);
+      setOptimizationResult(res);
+      // Refresh run history from Firestore
+      const runs = await fetchRunHistory(company.company_id);
+      setRunHistory(runs);
+    } catch (err: any) {
+      setActionError(`PuLP Optimization failed: ${err.message}`);
     } finally {
       setIsOptimizing(false);
     }
   };
 
-  // Load Part 6/7 Spec 4-Project Worked Example
+  // Real Backend: Populate the 4 spec projects into Firestore, then trigger real execution
   const handleLoadSpecDemo = async () => {
     setLoadingCompany(true);
+    setActionError(null);
     try {
       const demoCompany: CompanyData = {
         company_id: DEFAULT_COMPANY_ID,
@@ -314,48 +171,70 @@ export default function Home() {
         planning_period_years: 5,
         max_acceptable_risk: "Medium",
       };
-      setCompany(demoCompany);
-      setProjects(SPEC_PROJECTS);
+      
+      // 1. Real write to Firestore
+      const savedComp = await saveCompany(demoCompany);
+      setCompany(savedComp);
 
-      // Attempt live backend save
-      await saveCompany(demoCompany).catch(() => null);
-      for (const p of SPEC_PROJECTS) {
-        await saveProject(p).catch(() => null);
-      }
+      const specProjects: Partial<ProjectData>[] = [
+        {
+          name: "Solar installation",
+          initial_cost: 800000,
+          cash_flows: [300000, 300000, 300000, 300000, 300000],
+          duration_years: 5,
+          risk_category: "Medium",
+          industry_category: "CleanTech",
+        },
+        {
+          name: "Recycling unit",
+          initial_cost: 600000,
+          cash_flows: [250000, 250000, 250000, 250000, 250000],
+          duration_years: 5,
+          risk_category: "Medium",
+          industry_category: "Environmental",
+        },
+        {
+          name: "Software product",
+          initial_cost: 500000,
+          cash_flows: [240000, 240000, 240000, 240000, 240000],
+          duration_years: 5,
+          risk_category: "High",
+          industry_category: "Software",
+        },
+        {
+          name: "Energy-efficient equipment",
+          initial_cost: 400000,
+          cash_flows: [180000, 180000, 180000, 180000, 180000],
+          duration_years: 5,
+          risk_category: "Low",
+          industry_category: "Energy",
+        },
+      ];
 
-      // Try live API analysis
-      const analysisRes = await analyzeProjects(DEFAULT_COMPANY_ID).catch(() => null);
-      let finList: ProjectFinancials[];
-      if (analysisRes && analysisRes.projects && analysisRes.projects.length > 0) {
-        finList = analysisRes.projects;
-      } else {
-        finList = buildFallbackAnalysis(
-          SPEC_PROJECTS,
-          demoCompany.discount_rate,
-          demoCompany.total_investment_budget,
-          demoCompany.min_cash_reserve,
-          demoCompany.loan_facility
-        );
+      // 2. Real write of all 4 candidate projects to Firestore
+      const savedProjectsList: ProjectData[] = [];
+      for (const p of specProjects) {
+        const savedP = await saveProject({
+          ...p,
+          company_id: DEFAULT_COMPANY_ID,
+        });
+        savedProjectsList.push(savedP);
       }
-      setAnalyzedProjects(finList);
+      setProjects(savedProjectsList);
 
-      // Try live API optimization
-      const optRes = await optimizePortfolio(DEFAULT_COMPANY_ID).catch(() => null);
-      let finalOpt: OptimizationResult;
-      if (optRes) {
-        finalOpt = optRes;
-      } else {
-        finalOpt = buildFallbackOptimization(
-          finList,
-          demoCompany.total_investment_budget,
-          demoCompany.min_cash_reserve,
-          demoCompany.max_acceptable_risk
-        );
-      }
-      setOptimizationResult(finalOpt);
-      setRunHistory((prev) => [finalOpt, ...prev.filter((r) => r.run_id !== finalOpt.run_id)]);
-    } catch (e: any) {
-      console.error("Demo loader fallback applied:", e);
+      // 3. Real live execution of Python financial engine and ML models on backend
+      const analysisRes = await analyzeProjects(DEFAULT_COMPANY_ID);
+      setAnalyzedProjects(analysisRes.projects);
+
+      // 4. Real live execution of PuLP integer solver on backend
+      const optRes = await optimizePortfolio(DEFAULT_COMPANY_ID);
+      setOptimizationResult(optRes);
+
+      // 5. Fetch real run history from Firestore
+      const history = await fetchRunHistory(DEFAULT_COMPANY_ID);
+      setRunHistory(history);
+    } catch (err: any) {
+      setActionError(`Backend request failed: ${err.message}. Please verify backend connection using the status banner above.`);
     } finally {
       setLoadingCompany(false);
     }
@@ -370,15 +249,32 @@ export default function Home() {
         rocAuc={metadata?.risk_classifier_model?.roc_auc ?? 0.8176}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-10 space-y-12">
-        {/* Step 1: Company Parameters Setup */}
+      {/* Real Live Backend Status & Configuration Banner */}
+      <BackendStatusBanner onBackendReconnected={loadDataFromBackend} />
+
+      {actionError && (
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 pt-4">
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
+            <span>{actionError}</span>
+            <button
+              onClick={() => setActionError(null)}
+              className="text-slate-400 hover:text-white font-bold ml-4"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-12">
+        {/* Step 1: Company Parameters Setup -> Firestore companies/{companyId} */}
         <CompanySetup
           company={company}
           onSaveCompany={handleSaveCompany}
           loading={loadingCompany}
         />
 
-        {/* Step 2: Project Proposals Builder & CSV Upload */}
+        {/* Step 2: Project Proposals Builder & CSV Upload -> Firestore companies/{companyId}/projects */}
         <ProjectBuilder
           companyId={company.company_id}
           projects={projects}
@@ -388,10 +284,10 @@ export default function Home() {
           isAnalyzing={isAnalyzing}
         />
 
-        {/* Step 3: Per-Project Financial Analysis & Scenario Visualizations */}
+        {/* Step 3: Per-Project Financial Analysis & Real Scikit-Learn Model Predictions */}
         <ProjectAnalysisCards projects={analyzedProjects} />
 
-        {/* Step 4: PuLP Optimization Dashboard & Rejection Explanations */}
+        {/* Step 4: PuLP Optimization Dashboard -> Solved live via Python CBC/HiGHS Solver */}
         <OptimizationDashboard
           result={optimizationResult}
           onRunOptimization={handleRunOptimization}
@@ -399,7 +295,7 @@ export default function Home() {
           totalCandidates={projects.length}
         />
 
-        {/* Step 5: Historical Runs Tracked in Firestore */}
+        {/* Step 5: Historical Runs Tracked Live in Firestore -> companies/{companyId}/runs */}
         <RunHistory
           runs={runHistory}
           onSelectRun={(run) => setOptimizationResult(run)}
