@@ -1,4 +1,5 @@
 import io
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
@@ -6,6 +7,8 @@ from backend.main import app
 client = TestClient(app)
 
 def test_full_api_workflow():
+    company_id = f"test_e2e_{uuid.uuid4().hex[:8]}"
+
     # 1. Health check
     res_health = client.get("/api/health")
     assert res_health.status_code == 200
@@ -20,7 +23,7 @@ def test_full_api_workflow():
 
     # 3. Create Company
     company_payload = {
-        "company_id": "test_e2e_company",
+        "company_id": company_id,
         "total_investment_budget": 2000000.0,
         "min_cash_reserve": 200000.0,
         "loan_facility": 500000.0,
@@ -31,7 +34,7 @@ def test_full_api_workflow():
     res_comp = client.post("/api/company", json=company_payload)
     assert res_comp.status_code == 201
     comp_data = res_comp.json()
-    assert comp_data["company_id"] == "test_e2e_company"
+    assert comp_data["company_id"] == company_id
     assert comp_data["total_investment_budget"] == 2000000.0
 
     # 4. Upload Projects CSV matching the 4-project spec scenario
@@ -45,7 +48,7 @@ def test_full_api_workflow():
 
     res_upload = client.post(
         "/api/upload-projects",
-        data={"company_id": "test_e2e_company"},
+        data={"company_id": company_id},
         files={"file": ("projects.csv", io.BytesIO(csv_content), "text/csv")}
     )
     assert res_upload.status_code == 200
@@ -53,7 +56,7 @@ def test_full_api_workflow():
     assert upload_data["uploaded_count"] == 4
 
     # 5. Run Analyze endpoint
-    res_analyze = client.post("/api/analyze", json={"company_id": "test_e2e_company"})
+    res_analyze = client.post("/api/analyze", json={"company_id": company_id})
     assert res_analyze.status_code == 200
     analyze_data = res_analyze.json()
     assert len(analyze_data["projects"]) == 4
@@ -69,7 +72,7 @@ def test_full_api_workflow():
         assert "funding_analysis" in p
 
     # 6. Run Optimize endpoint
-    res_opt = client.post("/api/optimize", json={"company_id": "test_e2e_company"})
+    res_opt = client.post("/api/optimize", json={"company_id": company_id})
     assert res_opt.status_code == 200
     opt_data = res_opt.json()
     assert opt_data["selected_count"] == 3
@@ -84,7 +87,7 @@ def test_full_api_workflow():
     assert energy_proj["rejection_reason"] is not None
 
     # 7. Check History endpoint
-    res_runs = client.get("/api/runs/test_e2e_company")
+    res_runs = client.get(f"/api/runs/{company_id}")
     assert res_runs.status_code == 200
     runs = res_runs.json()
     assert len(runs) >= 1
