@@ -52,6 +52,7 @@ firebase-key.json
 *-firebase-adminsdk-*.json
 *adminsdk*.json
 kaggle.json
+render_env_guide.txt
 
 # IDE / OS
 .idea/
