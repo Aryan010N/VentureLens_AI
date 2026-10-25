@@ -1,0 +1,36 @@
+{
+  "dataset_slug": "manishkc06/startup-success-prediction",
+  "dataset_name": "Startup Success Prediction (Real Historical Data)",
+  "train_samples": 738,
+  "test_samples": 185,
+  "features": [
+    "funding_rounds",
+    "milestones",
+    "relationships",
+    "age_last_funding_year",
+    "avg_participants",
+    "is_software",
+    "is_enterprise",
+    "is_biotech",
+    "is_ecommerce"
+  ],
+  "revenue_confidence_model": {
+    "algorithm": "RandomForestRegressor",
+    "r2_score": 0.8678,
+    "mae": 0.0437,
+    "rmse": 0.0556,
+    "n_estimators": 100,
+    "max_depth": 6
+  },
+  "risk_classifier_model": {
+    "algorithm": "RandomForestClassifier",
+    "accuracy": 0.7784,
+    "precision": 0.8015,
+    "recall": 0.875,
+    "f1_score": 0.8367,
+    "roc_auc": 0.8176,
+    "n_estimators": 100,
+    "max_depth": 5
+  },
+  "disclaimer": "ML predictions are estimates based on historical data, not guaranteed returns."
+}
