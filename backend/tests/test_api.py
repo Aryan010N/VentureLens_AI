@@ -98,5 +98,33 @@ def test_full_api_workflow():
     assert res_train.status_code == 200
     train_data = res_train.json()
     assert train_data["status"] == "success"
+
+    # 9. Check Auth Register & Login
+    unique_email = f"investor_{uuid.uuid4().hex[:6]}@example.com"
+    res_reg = client.post("/api/auth/register", json={
+        "name": "Jane Doe",
+        "email": unique_email,
+        "password": "securepassword123",
+        "company_name": "Doe Capital"
+    })
+    assert res_reg.status_code == 200
+    reg_data = res_reg.json()
+    assert reg_data["success"] is True
+    assert reg_data["email"] == unique_email
+
+    res_login = client.post("/api/auth/login", json={
+        "email": unique_email,
+        "password": "securepassword123"
+    })
+    assert res_login.status_code == 200
+    assert res_login.json()["success"] is True
+
+    # 10. Check Delete Project
+    projects_list = client.get(f"/api/projects/{company_id}").json()
+    if projects_list:
+        p_to_del = projects_list[0]["project_id"]
+        res_del = client.delete(f"/api/project/{company_id}/{p_to_del}")
+        assert res_del.status_code == 200
+        assert res_del.json()["success"] is True
     assert "metrics" in train_data
     assert train_data["metrics"]["train_samples"] > 0

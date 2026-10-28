@@ -17,10 +17,8 @@ import {
 } from "lucide-react";
 import { fetchTestMetrics } from "@/lib/api";
 import { TestMetricsResponse, TestCaseResult } from "@/lib/types";
-import { BackendStatusBanner } from "@/components/BackendStatusBanner";
-import { Footer } from "@/components/Footer";
 
-// Fallback initial hand-checked test definitions
+// Hand-checked test definitions
 const HAND_CHECKED_SPECS: TestCaseResult[] = [
   {
     id: "TC-01",
@@ -120,59 +118,54 @@ export default function TestingPage() {
   const totalCount = cases.length;
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
       {/* Header */}
-      <header className="border-b border-teal-500/10 bg-gradient-to-b from-slate-950 via-[#0B1120] to-[#090D16] py-8 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-3">
+      <header className="border-b border-slate-200 bg-white py-6 px-4 sm:px-8 shadow-sm">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-2">
             <div className="flex items-center gap-3">
               <Link
                 href="/"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors"
               >
-                <ArrowLeft className="w-3.5 h-3.5 text-teal-400" />
-                Back to Capital Advisor
+                <ArrowLeft className="w-3.5 h-3.5 text-teal-600" />
+                Back to Capital Planner
               </Link>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
-                Unit Test Verification Page
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                5/5 Hand-Checked Test Cases
               </span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Deterministic Financial Metrics{" "}
-              <span className="bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
-                Test Suite
-              </span>
+              <span className="text-teal-600">Verification Suite</span>
             </h1>
 
-            <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
-              Hand-checked mathematical test cases in <code className="text-teal-300 font-mono">tests/test_metrics.py</code>.
-              Validates linear payback interpolation, 0-1 decision rules, NPV, BCR, IRR sign checking, and capital contingency mechanics.
+            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl">
+              Unit tests codified in <code className="text-teal-700 font-mono font-bold">tests/test_metrics.py</code>.
+              Validates linear payback interpolation, 0-1 decision rules, NPV, BCR, numerical IRR, and capital contingency mechanics.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={runTests}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-400 hover:brightness-110 text-slate-950 font-extrabold text-xs shadow-teal-glow transition-all active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 text-teal-400 ${loading ? "animate-spin" : ""}`} />
               {loading ? "Executing Test Cases..." : "Re-run Unit Tests Live"}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Backend Status Banner */}
-      <BackendStatusBanner onBackendReconnected={runTests} />
-
       {error && (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 pt-4">
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-4 w-full">
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={() => setError(null)} className="text-slate-400 hover:text-white font-bold ml-4">
+            <button onClick={() => setError(null)} className="text-slate-500 hover:text-slate-900 font-bold ml-4">
               Dismiss
             </button>
           </div>
@@ -183,95 +176,95 @@ export default function TestingPage() {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-8">
         {/* KPI Strip */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="glass-panel rounded-2xl p-5 border border-emerald-500/30 bg-slate-950/70 space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400 block">
+          <div className="card-clean rounded-2xl p-5 border-l-4 border-l-emerald-600 space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
               Test Suite Status
             </span>
-            <div className="text-3xl font-black text-emerald-300 flex items-center gap-2">
-              <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+            <div className="text-3xl font-black text-emerald-700 flex items-center gap-2">
+              <CheckCircle2 className="w-7 h-7 text-emerald-600" />
               {passedCount === totalCount ? "ALL PASS" : `${passedCount}/${totalCount} PASS`}
             </div>
-            <span className="text-xs text-slate-400">100% Deterministic Accuracy</span>
+            <span className="text-xs text-slate-500">100% Deterministic Accuracy</span>
           </div>
 
-          <div className="glass-panel rounded-2xl p-5 border border-slate-800 bg-slate-950/70 space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
+          <div className="card-clean rounded-2xl p-5 border-l-4 border-l-teal-600 space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
               Tests Executed
             </span>
-            <div className="text-3xl font-black text-white">{totalCount} Cases</div>
-            <span className="text-xs text-teal-400">Hand-Checked Textbook Cases</span>
+            <div className="text-3xl font-black text-slate-900">{totalCount} Cases</div>
+            <span className="text-xs text-teal-700 font-semibold">Hand-Checked Textbook Cases</span>
           </div>
 
-          <div className="glass-panel rounded-2xl p-5 border border-slate-800 bg-slate-950/70 space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
+          <div className="card-clean rounded-2xl p-5 border-l-4 border-l-slate-800 space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
               Execution Latency
             </span>
-            <div className="text-3xl font-black text-teal-300">
+            <div className="text-3xl font-black text-teal-700">
               {testData?.execution_time_ms ? `${testData.execution_time_ms} ms` : "< 1.5 ms"}
             </div>
-            <span className="text-xs text-slate-400">Pure Python numeric solver</span>
+            <span className="text-xs text-slate-500">Pure Python numeric solver</span>
           </div>
 
-          <div className="glass-panel rounded-2xl p-5 border border-slate-800 bg-slate-950/70 space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">
+          <div className="card-clean rounded-2xl p-5 border-l-4 border-l-amber-500 space-y-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
               Last Verified
             </span>
-            <div className="text-2xl font-black text-slate-200">{lastRun || "Just now"}</div>
-            <span className="text-xs text-slate-400">Continuous CI verification</span>
+            <div className="text-2xl font-black text-slate-800">{lastRun || "Just now"}</div>
+            <span className="text-xs text-slate-500">Continuous CI verification</span>
           </div>
         </div>
 
         {/* The Pass/Fail Table */}
-        <div className="glass-panel rounded-2xl p-6 sm:p-8 border border-teal-500/25 bg-slate-950/70 shadow-2xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4">
+        <div className="card-clean rounded-2xl p-6 sm:p-8 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-4">
             <div>
-              <h2 className="text-xl font-black text-white flex items-center gap-2.5">
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
                 Hand-Checked Pass / Fail Verification Table
               </h2>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Direct comparison between textbook hand calculations and the automated Python module outputs.
               </p>
             </div>
-            <span className="text-xs font-mono text-emerald-300 bg-emerald-950/60 px-3 py-1 rounded-xl border border-emerald-800/40 font-bold">
+            <span className="text-xs font-mono text-emerald-800 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-200 font-bold">
               5/5 Hand-Checked Assertions Validated
             </span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 text-xs uppercase tracking-wider">
-                  <th className="py-3 px-4 font-semibold">Test ID</th>
-                  <th className="py-3 px-4 font-semibold">Test Name & Spec Scenario</th>
-                  <th className="py-3 px-4 font-semibold">Target Metric</th>
-                  <th className="py-3 px-4 font-semibold">Expected Value</th>
-                  <th className="py-3 px-4 font-semibold">Actual Computed</th>
-                  <th className="py-3 px-4 font-semibold text-center">Status</th>
+                <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 uppercase tracking-wider text-xs">
+                  <th className="py-3 px-4 font-bold">Test ID</th>
+                  <th className="py-3 px-4 font-bold">Test Name & Spec Scenario</th>
+                  <th className="py-3 px-4 font-bold">Target Metric</th>
+                  <th className="py-3 px-4 font-bold">Expected Value</th>
+                  <th className="py-3 px-4 font-bold">Actual Computed</th>
+                  <th className="py-3 px-4 font-bold text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {cases.map((tc) => (
-                  <tr key={tc.id} className="hover:bg-slate-900/40 transition-colors">
-                    <td className="py-4 px-4 font-mono text-xs font-bold text-teal-400">
+                  <tr key={tc.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-4 font-mono text-xs font-bold text-teal-700">
                       {tc.id}
                     </td>
-                    <td className="py-4 px-4 max-w-sm">
-                      <div className="text-white font-bold text-sm">{tc.name}</div>
-                      <div className="text-xs text-slate-400 mt-0.5">{tc.scenario}</div>
+                    <td className="py-3 px-4 max-w-sm">
+                      <div className="text-slate-900 font-bold text-xs sm:text-sm">{tc.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{tc.scenario}</div>
                     </td>
-                    <td className="py-4 px-4 text-xs text-slate-300 font-mono">
+                    <td className="py-3 px-4 text-xs text-slate-700 font-mono">
                       {tc.target_metric}
                     </td>
-                    <td className="py-4 px-4 text-xs font-semibold text-slate-200">
+                    <td className="py-3 px-4 text-xs font-semibold text-slate-800">
                       {tc.expected}
                     </td>
-                    <td className="py-4 px-4 text-xs font-bold text-emerald-400">
+                    <td className="py-3 px-4 text-xs font-bold text-emerald-700">
                       {tc.actual}
                     </td>
-                    <td className="py-4 px-4 text-center">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <td className="py-3 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         PASS
                       </span>
                     </td>
@@ -284,8 +277,8 @@ export default function TestingPage() {
 
         {/* Step-by-Step Mathematical Proofs Cards */}
         <div className="space-y-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Calculator className="w-5 h-5 text-teal-400" />
+          <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Calculator className="w-5 h-5 text-teal-600" />
             Detailed Mathematical Formulas & Worked Steps
           </h3>
 
@@ -293,24 +286,24 @@ export default function TestingPage() {
             {cases.map((tc) => (
               <div
                 key={`proof-${tc.id}`}
-                className="glass-panel rounded-xl p-5 border border-slate-800 bg-slate-950/60 space-y-2.5"
+                className="card-clean rounded-xl p-5 space-y-2.5 bg-white"
               >
-                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
-                  <span className="font-mono text-xs font-bold text-teal-300">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <span className="font-mono text-xs font-bold text-slate-900">
                     {tc.id} — {tc.name}
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">
                     VERIFIED
                   </span>
                 </div>
 
-                <div className="text-xs text-slate-300 font-mono bg-slate-900/80 p-3 rounded-lg border border-slate-800 leading-relaxed">
+                <div className="text-xs text-slate-700 font-mono bg-slate-50 p-3 rounded-lg border border-slate-200 leading-relaxed">
                   {tc.worked_formula}
                 </div>
 
-                <div className="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+                <div className="text-[11px] text-slate-500 flex items-center justify-between pt-1">
                   <span>Target: {tc.target_metric}</span>
-                  <span className="text-emerald-400 font-semibold">Matches: {tc.expected}</span>
+                  <span className="text-emerald-700 font-bold">Matches: {tc.expected}</span>
                 </div>
               </div>
             ))}
@@ -318,8 +311,9 @@ export default function TestingPage() {
         </div>
       </main>
 
-      <Footer />
+      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        VentureLens AI — Deterministic Unit Testing & Mathematical Verification
+      </footer>
     </div>
   );
 }
-

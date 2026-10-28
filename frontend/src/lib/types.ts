@@ -219,3 +219,12 @@ export interface TestMetricsResponse {
   execution_time_ms: number;
   test_cases: TestCaseResult[];
 }
+
+export interface UserProfile {
+  user_id: string;
+  email: string;
+  name: string;
+  company_id: string;
+  token?: string;
+  role?: string;
+}

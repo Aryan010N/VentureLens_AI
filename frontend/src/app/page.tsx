@@ -1,36 +1,42 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Hero } from "@/components/Hero";
-import { BackendStatusBanner } from "@/components/BackendStatusBanner";
-import { CompanySetup } from "@/components/CompanySetup";
-import { ProjectBuilder } from "@/components/ProjectBuilder";
-import { ProjectAnalysisCards } from "@/components/ProjectAnalysisCards";
-import { OptimizationDashboard } from "@/components/OptimizationDashboard";
-import { RunHistory } from "@/components/RunHistory";
-import { Footer } from "@/components/Footer";
+import { Navbar } from "@/components/Navbar";
+import { AuthModal } from "@/components/AuthModal";
+import { SmartPlanner } from "@/components/SmartPlanner";
+import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { ProjectFullAnalysisModal } from "@/components/ProjectFullAnalysisModal";
+import { AnalysisHistorySection } from "@/components/AnalysisHistorySection";
+import { AccountSection } from "@/components/AccountSection";
 import {
   saveCompany,
   fetchCompany,
   saveProject,
   fetchProjects,
+  deleteProject,
   uploadProjectsFile,
-  analyzeProjects,
   optimizePortfolio,
   fetchRunHistory,
-  fetchMetadata,
+  fetchHealth,
 } from "@/lib/api";
 import {
   CompanyData,
   ProjectData,
-  ProjectFinancials,
   OptimizationResult,
-  MLMetrics,
+  AllocationItem,
+  UserProfile,
 } from "@/lib/types";
 
 const DEFAULT_COMPANY_ID = "venture_company_01";
 
 export default function Home() {
+  // Navigation & User State
+  const [activeTab, setActiveTab] = useState<"planner" | "history" | "account">("planner");
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
+
+  // Financial Planner State
   const [company, setCompany] = useState<CompanyData>({
     company_id: DEFAULT_COMPANY_ID,
     total_investment_budget: 2000000,
@@ -39,136 +45,155 @@ export default function Home() {
     discount_rate: 0.12,
     planning_period_years: 5,
     max_acceptable_risk: "Medium",
+    contingency_pct: 0,
   });
 
   const [projects, setProjects] = useState<ProjectData[]>([]);
-  const [analyzedProjects, setAnalyzedProjects] = useState<ProjectFinancials[]>([]);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
   const [runHistory, setRunHistory] = useState<OptimizationResult[]>([]);
-  const [metadata, setMetadata] = useState<MLMetrics | null>(null);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  const [loadingCompany, setLoadingCompany] = useState<boolean>(false);
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [isOptimizing, setIsOptimizing] = useState<boolean>(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // Full Analysis Modal State
+  const [selectedAnalysisProject, setSelectedAnalysisProject] = useState<AllocationItem | null>(null);
 
-  const loadDataFromBackend = useCallback(async () => {
-    setActionError(null);
-    try {
-      const meta = await fetchMetadata().catch(() => null);
-      if (meta) setMetadata(meta);
-
-      const existingComp = await fetchCompany(DEFAULT_COMPANY_ID).catch(() => null);
-      if (existingComp) {
-        setCompany(existingComp);
+  // Load User & Data on Mount
+  useEffect(() => {
+    // Check saved user session
+    const savedUser = localStorage.getItem("venturelens_user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        console.warn("Could not parse saved user:", e);
       }
-
-      const existingProjects = await fetchProjects(DEFAULT_COMPANY_ID).catch(() => []);
-      if (existingProjects && existingProjects.length > 0) {
-        setProjects(existingProjects);
-      }
-
-      const pastRuns = await fetchRunHistory(DEFAULT_COMPANY_ID).catch(() => []);
-      if (pastRuns && pastRuns.length > 0) {
-        setRunHistory(pastRuns);
-        setOptimizationResult(pastRuns[0]);
-      } else if (!existingProjects || existingProjects.length === 0) {
-        // Initial setup: auto-load spec worked example so the dashboard and cards are immediately visible
-        handleLoadSpecDemo().catch(() => {});
-      }
-    } catch (err: any) {
-      console.warn("Could not fetch initial data from backend:", err);
+    } else {
+      // Set default demo investor session for smooth onboarding
+      const demoUser: UserProfile = {
+        user_id: "user_demo_01",
+        email: "demo@venturelens.ai",
+        name: "Venture Investor",
+        company_id: DEFAULT_COMPANY_ID,
+      };
+      setUser(demoUser);
     }
+
+    // Health check
+    fetchHealth()
+      .then(() => setBackendHealthy(true))
+      .catch(() => setBackendHealthy(false));
   }, []);
 
-  useEffect(() => {
-    loadDataFromBackend();
-  }, [loadDataFromBackend]);
-
-  // Real Backend: Save company updates to Firestore
-  const handleSaveCompany = async (updated: Partial<CompanyData>) => {
-    setLoadingCompany(true);
-    setActionError(null);
+  const loadData = useCallback(async () => {
+    const compId = user?.company_id || DEFAULT_COMPANY_ID;
     try {
-      const saved = await saveCompany(updated);
+      const comp = await fetchCompany(compId).catch(() => null);
+      if (comp) setCompany(comp);
+
+      const projs = await fetchProjects(compId).catch(() => []);
+      if (projs && projs.length > 0) {
+        setProjects(projs);
+      }
+
+      const runs = await fetchRunHistory(compId).catch(() => []);
+      if (runs && runs.length > 0) {
+        setRunHistory(runs);
+        setOptimizationResult(runs[0]);
+      } else if (!projs || projs.length === 0) {
+        // Auto-load spec demo so initial page is fully populated
+        handleLoadSpecDemo();
+      }
+    } catch (err) {
+      console.warn("Error loading data:", err);
+    }
+  }, [user?.company_id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Auth Handlers
+  const handleAuthSuccess = (u: UserProfile) => {
+    setUser(u);
+    localStorage.setItem("venturelens_user", JSON.stringify(u));
+    setCompany((prev) => ({ ...prev, company_id: u.company_id }));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("venturelens_user");
+  };
+
+  // Company Parameter Save
+  const handleSaveCompany = async (updated: Partial<CompanyData>) => {
+    try {
+      const saved = await saveCompany({
+        ...company,
+        ...updated,
+        company_id: user?.company_id || company.company_id,
+      });
       setCompany(saved);
     } catch (err: any) {
-      setActionError(`Failed to save company in Firestore: ${err.message}`);
-      throw err;
-    } finally {
-      setLoadingCompany(false);
+      console.error("Save company error:", err);
     }
   };
 
-  // Real Backend: Save project to Firestore under company
+  // Project Add / Edit
   const handleAddProject = async (proj: Partial<ProjectData>) => {
-    setActionError(null);
+    setErrorBanner(null);
     try {
       const saved = await saveProject({
         ...proj,
-        company_id: company.company_id,
+        company_id: user?.company_id || company.company_id,
       });
-      setProjects((prev) => [...prev, saved]);
+      setProjects((prev) => {
+        const existingIdx = prev.findIndex(
+          (p) => p.project_id === saved.project_id || (proj.project_id && p.project_id === proj.project_id)
+        );
+        if (existingIdx >= 0) {
+          const clone = [...prev];
+          clone[existingIdx] = saved;
+          return clone;
+        }
+        return [...prev, saved];
+      });
     } catch (err: any) {
-      setActionError(`Failed to register project in Firestore: ${err.message}`);
+      setErrorBanner(`Failed to save project: ${err.message}`);
       throw err;
     }
   };
 
-  // Real Backend: Upload CSV to Backend for pandas cleaning and bulk Firestore write
-  const handleUploadFile = async (file: File) => {
-    setActionError(null);
+  // Project Removal
+  const handleRemoveProject = async (projectId: string) => {
+    setErrorBanner(null);
     try {
-      const res = await uploadProjectsFile(company.company_id, file);
-      if (res.projects && res.projects.length > 0) {
+      await deleteProject(user?.company_id || company.company_id, projectId);
+      setProjects((prev) => prev.filter((p) => p.project_id !== projectId));
+    } catch (err: any) {
+      setErrorBanner(`Failed to delete project: ${err.message}`);
+    }
+  };
+
+  // CSV Upload
+  const handleUploadCSV = async (file: File) => {
+    setErrorBanner(null);
+    try {
+      const res = await uploadProjectsFile(user?.company_id || company.company_id, file);
+      if (res.projects) {
         setProjects((prev) => [...prev, ...res.projects]);
       }
     } catch (err: any) {
-      setActionError(`CSV Upload and Preprocessing failed: ${err.message}`);
-      throw err;
+      setErrorBanner(`CSV Upload failed: ${err.message}`);
     }
   };
 
-  // Real Backend: Execute financial analysis & ML inference on real models
-  const handleTriggerAnalysis = async () => {
-    setIsAnalyzing(true);
-    setActionError(null);
-    try {
-      const res = await analyzeProjects(company.company_id);
-      setAnalyzedProjects(res.projects);
-    } catch (err: any) {
-      setActionError(`Financial & ML Analysis failed: ${err.message}`);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  // Real Backend: Execute PuLP mathematical optimization and persist run in Firestore
-  const handleRunOptimization = async () => {
-    setIsOptimizing(true);
-    setActionError(null);
-    try {
-      const res = await optimizePortfolio(company.company_id, {
-        contingency_pct: company.contingency_pct,
-      });
-      setOptimizationResult(res);
-      // Refresh run history from Firestore
-      const runs = await fetchRunHistory(company.company_id);
-      setRunHistory(runs);
-    } catch (err: any) {
-      setActionError(`PuLP Optimization failed: ${err.message}`);
-    } finally {
-      setIsOptimizing(false);
-    }
-  };
-
-  // Real Backend: Populate the 4 spec projects into Firestore, then trigger real execution
+  // Load Spec Worked Example
   const handleLoadSpecDemo = async () => {
-    setLoadingCompany(true);
-    setActionError(null);
+    setErrorBanner(null);
+    const compId = user?.company_id || DEFAULT_COMPANY_ID;
     try {
       const demoCompany: CompanyData = {
-        company_id: DEFAULT_COMPANY_ID,
+        company_id: compId,
         total_investment_budget: 2000000,
         min_cash_reserve: 200000,
         loan_facility: 500000,
@@ -177,10 +202,8 @@ export default function Home() {
         max_acceptable_risk: "Medium",
         contingency_pct: 0,
       };
-      
-      // 1. Real write to Firestore
-      const savedComp = await saveCompany(demoCompany);
-      setCompany(savedComp);
+      await saveCompany(demoCompany);
+      setCompany(demoCompany);
 
       const specProjects: Partial<ProjectData>[] = [
         {
@@ -217,54 +240,75 @@ export default function Home() {
         },
       ];
 
-      // 2. Real write of all 4 candidate projects to Firestore
-      const savedProjectsList: ProjectData[] = [];
+      const savedList: ProjectData[] = [];
       for (const p of specProjects) {
-        const savedP = await saveProject({
-          ...p,
-          company_id: DEFAULT_COMPANY_ID,
-        });
-        savedProjectsList.push(savedP);
+        const saved = await saveProject({ ...p, company_id: compId });
+        savedList.push(saved);
       }
-      setProjects(savedProjectsList);
+      setProjects(savedList);
 
-      // 3. Real live execution of Python financial engine and ML models on backend
-      const analysisRes = await analyzeProjects(DEFAULT_COMPANY_ID);
-      setAnalyzedProjects(analysisRes.projects);
+      // Execute Optimization automatically
+      const opt = await optimizePortfolio(compId);
+      setOptimizationResult(opt);
 
-      // 4. Real live execution of PuLP integer solver on backend
-      const optRes = await optimizePortfolio(DEFAULT_COMPANY_ID);
-      setOptimizationResult(optRes);
-
-      // 5. Fetch real run history from Firestore
-      const history = await fetchRunHistory(DEFAULT_COMPANY_ID);
-      setRunHistory(history);
+      const runs = await fetchRunHistory(compId);
+      setRunHistory(runs);
     } catch (err: any) {
-      setActionError(`Backend request failed: ${err.message}. Please verify backend connection using the status banner above.`);
+      console.warn("Error running spec demo setup:", err);
+    }
+  };
+
+  // Run Real PuLP Optimization
+  const handleAnalyze = async () => {
+    setIsOptimizing(true);
+    setErrorBanner(null);
+    const compId = user?.company_id || company.company_id;
+    try {
+      const res = await optimizePortfolio(compId, {
+        override_budget: company.total_investment_budget,
+        override_max_risk: company.max_acceptable_risk,
+        override_discount_rate: company.discount_rate,
+        contingency_pct: company.contingency_pct,
+      });
+      setOptimizationResult(res);
+
+      const runs = await fetchRunHistory(compId);
+      setRunHistory(runs);
+
+      // Scroll smoothly to results
+      setTimeout(() => {
+        const el = document.getElementById("results-section");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch (err: any) {
+      setErrorBanner(
+        `Optimization failed: ${err.message || "Failed to fetch from backend"}. Please verify your connection or click Retry.`
+      );
     } finally {
-      setLoadingCompany(false);
+      setIsOptimizing(false);
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Hero
-        onLoadSpecDemo={handleLoadSpecDemo}
-        datasetSlug={metadata?.dataset_slug || "manishkc06/startup-success-prediction"}
-        r2Score={metadata?.revenue_confidence_model?.r2_score ?? 0.8678}
-        rocAuc={metadata?.risk_classifier_model?.roc_auc ?? 0.8176}
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-teal-500 selection:text-white">
+      {/* Top Navigation */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        user={user}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
+        backendHealthy={backendHealthy}
       />
 
-      {/* Real Live Backend Status & Configuration Banner */}
-      <BackendStatusBanner onBackendReconnected={loadDataFromBackend} />
-
-      {actionError && (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 pt-4">
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
-            <span>{actionError}</span>
+      {/* Global Error Notice */}
+      {errorBanner && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs sm:text-sm flex items-center justify-between shadow-sm">
+            <span>{errorBanner}</span>
             <button
-              onClick={() => setActionError(null)}
-              className="text-slate-400 hover:text-white font-bold ml-4"
+              onClick={() => setErrorBanner(null)}
+              className="text-slate-500 hover:text-slate-900 font-bold ml-4"
             >
               Dismiss
             </button>
@@ -272,44 +316,104 @@ export default function Home() {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-8 py-8 space-y-12">
-        {/* Step 1: Company Parameters Setup -> Firestore companies/{companyId} */}
-        <CompanySetup
-          company={company}
-          onSaveCompany={handleSaveCompany}
-          loading={loadingCompany}
-        />
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+        {activeTab === "planner" && (
+          <>
+            {/* Step 1 & 2: Budget Setup and Project Entry Form */}
+            <SmartPlanner
+              company={company}
+              setCompany={setCompany}
+              projects={projects}
+              onAddProject={handleAddProject}
+              onRemoveProject={handleRemoveProject}
+              onLoadSpecDemo={handleLoadSpecDemo}
+              onUploadCSV={handleUploadCSV}
+              onAnalyze={handleAnalyze}
+              isAnalyzing={isOptimizing}
+              onSaveCompany={handleSaveCompany}
+            />
 
-        {/* Step 2: Project Proposals Builder & CSV Upload -> Firestore companies/{companyId}/projects */}
-        <ProjectBuilder
-          companyId={company.company_id}
-          projects={projects}
-          onAddProject={handleAddProject}
-          onUploadFile={handleUploadFile}
-          onTriggerAnalysis={handleTriggerAnalysis}
-          isAnalyzing={isAnalyzing}
-        />
+            {/* Step 3: Analysis Results (Accepted & Rejected) */}
+            {optimizationResult && (
+              <div id="results-section" className="pt-6 border-t border-slate-200">
+                <ResultsDashboard
+                  result={optimizationResult}
+                  onOpenFullAnalysis={(proj) => setSelectedAnalysisProject(proj)}
+                  discountRate={company.discount_rate}
+                />
+              </div>
+            )}
+          </>
+        )}
 
-        {/* Step 3: Per-Project Financial Analysis & Real Scikit-Learn Model Predictions */}
-        <ProjectAnalysisCards projects={analyzedProjects} />
+        {activeTab === "history" && (
+          <AnalysisHistorySection
+            runs={runHistory}
+            onSelectRun={(run) => {
+              setOptimizationResult(run);
+              setActiveTab("planner");
+              setTimeout(() => {
+                const el = document.getElementById("results-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }, 100);
+            }}
+            activeRunId={optimizationResult?.run_id}
+            onRefresh={loadData}
+          />
+        )}
 
-        {/* Step 4: PuLP Optimization Dashboard -> Solved live via Python CBC/HiGHS Solver */}
-        <OptimizationDashboard
-          result={optimizationResult}
-          onRunOptimization={handleRunOptimization}
-          isOptimizing={isOptimizing}
-          totalCandidates={projects.length}
-        />
-
-        {/* Step 5: Historical Runs Tracked Live in Firestore -> companies/{companyId}/runs */}
-        <RunHistory
-          runs={runHistory}
-          onSelectRun={(run) => setOptimizationResult(run)}
-          selectedRunId={optimizationResult?.run_id}
-        />
+        {activeTab === "account" && (
+          <AccountSection
+            user={user}
+            company={company}
+            onLogout={handleLogout}
+            onOpenAuth={() => setIsAuthOpen(true)}
+          />
+        )}
       </main>
 
-      <Footer />
+      {/* Full Financial Analysis Modal */}
+      <ProjectFullAnalysisModal
+        project={selectedAnalysisProject}
+        onClose={() => setSelectedAnalysisProject(null)}
+        discountRate={company.discount_rate}
+      />
+
+      {/* Authentication Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
+      />
+
+      {/* Clean Modern Footer */}
+      <footer className="bg-white border-t border-slate-200 mt-16 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <div>
+            <span className="font-bold text-slate-700">VentureLens AI</span> — Simple Smart Capital Allocation System
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://venture-lens-ai-delta.vercel.app/testing"
+              className="text-teal-700 hover:text-teal-800 font-semibold"
+            >
+              5/5 Hand-Checked Tests
+            </a>
+            <span>•</span>
+            <a
+              href="https://github.com/Aryan010N/VentureLens_AI"
+              target="_blank"
+              rel="noreferrer"
+              className="text-slate-600 hover:text-slate-900 font-medium"
+            >
+              GitHub Repository
+            </a>
+            <span>•</span>
+            <span>Course: FFM CIE-2</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

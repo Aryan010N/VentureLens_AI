@@ -80,6 +80,17 @@ export async function fetchProjects(companyId: string): Promise<ProjectData[]> {
   return res.json();
 }
 
+export async function deleteProject(companyId: string, projectId: string): Promise<void> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/project/${companyId}/${projectId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to delete project" }));
+    throw new Error(err.detail || "Failed to delete project from Firestore");
+  }
+}
+
 export async function uploadProjectsFile(
   companyId: string,
   file: File
@@ -161,5 +172,63 @@ export async function trainMLModels(): Promise<{ status: string; message: string
   if (!res.ok) {
     throw new Error(`Training ML models failed with status ${res.status}`);
   }
+  return res.json();
+}
+
+export async function registerUser(payload: {
+  name: string;
+  email: string;
+  password: string;
+  company_name?: string;
+}): Promise<import("./types").UserProfile & { token: string; message?: string }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Registration failed" }));
+    throw new Error(err.detail || "Registration failed");
+  }
+  return res.json();
+}
+
+export async function loginUser(payload: {
+  email: string;
+  password: string;
+}): Promise<import("./types").UserProfile & { token: string; message?: string }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Login failed" }));
+    throw new Error(err.detail || "Login failed");
+  }
+  return res.json();
+}
+
+export async function forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Password reset request failed" }));
+    throw new Error(err.detail || "Password reset request failed");
+  }
+  return res.json();
+}
+
+export async function getCurrentUser(userId?: string): Promise<import("./types").UserProfile> {
+  const base = getApiBaseUrl();
+  const url = userId ? `${base}/api/auth/me?user_id=${encodeURIComponent(userId)}` : `${base}/api/auth/me`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch user profile");
   return res.json();
 }

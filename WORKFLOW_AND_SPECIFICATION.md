@@ -21,10 +21,17 @@ Under unconstrained capital budgeting, a company simply accepts every project wh
 3. **Portfolio Risk Skew**: High-return standalone projects often carry high downside risk. Independent evaluation risks concentrating exposure beyond corporate tolerance.
 
 ### The VentureLens AI Solution
-VentureLens AI solves this challenge by integrating **three foundational pillars** into an automated, auditable decision-making platform:
-1. **Real Historical Machine Learning**: Predicts risk and revenue confidence based on real Kaggle venture data.
-2. **Textbook-Deterministic Financial Metrics Engine (`metrics.py`)**: Computes exact NPV, BCR, ROI %, Annual Average Return %, numerical IRR, simple and discounted payback periods with linear interpolation, and contingency reserves.
+VentureLens AI solves this challenge by integrating **three foundational pillars** into an automated, simple, user-friendly decision-making platform:
+1. **Real Historical Machine Learning**: Predicts operational risk and revenue confidence based on real Kaggle venture data (`data/startup_data.csv`).
+2. **Textbook-Deterministic Financial Metrics Engine (`metrics.py`)**: Computes exact NPV, BCR, ROI %, Annual Average Return %, numerical IRR, simple and discounted payback periods with linear interpolation, break-even years, and contingency reserves with zero hardcoding.
 3. **PuLP 0-1 Binary Integer Linear Programming**: Solves the global combinatorial knapsack optimization to identify the mathematically optimal portfolio while generating explicit audit rejection reasons for unselected initiatives.
+
+### The Modern Simple User Flow
+The redesigned interface follows a clean, friction-free 6-step financial workflow:
+```
+Login / Sign In → Enter Budget & Constraints → Add Projects (Table / CSV) → Analyze & Allocate Budget → View Accepted & Rejected Projects → Open Full Analysis Modal
+```
+Avoids cluttered dashboards or technical cognitive overload on the main page while keeping the full power of mathematical optimization, scikit-learn models, and Firebase Firestore available on demand.
 
 ---
 
@@ -127,10 +134,10 @@ $$\text{Portfolio Average Risk} \le \text{Risk Ceiling}$$
 $$x_i \in \{0, 1\} \quad \forall i \in \{1, \dots, n\}$$
 
 ### Step 5: Executive Results Presentation & Audit Reporting
-- **Executive Portfolio Summary**: Top-level KPIs, unallocated liquidity reserve, and budget split pie chart.
-- **Sortable Comparison Table**: Ranks selected initiatives with the best value in each column highlighted.
-- **Selected Project Cards**: Rich responsive cards displaying ACCEPT badges, 10 metric tiles with tooltips, year-by-year PV schedules, and zero-crossing cumulative cash flow line charts.
-- **Rejected Projects Table**: Itemizes unselected initiatives with exact rule-based justifications (`NPV negative`, `Exceeds risk ceiling`, `Budget exhausted`, or `Displaced by higher-yielding combinations`).
+- **4 Top Summary Cards**: Total Budget, Total Allocated, Remaining Cash / Protected Reserve, Total Portfolio NPV.
+- **Accepted Projects Section**: Green-accented professional cards showing ACCEPT badge, actual allocated budget, % of total budget, expected benefits, net benefit, NPV, ROI, IRR, BCR, simple & discounted payback, break-even year, and prominent **"View Full Analysis"** button.
+- **Rejected Projects Section**: Red-accented cards/table itemizing unselected initiatives with exact rule-based justifications (`NPV negative`, `Exceeds risk ceiling`, `Budget exhausted`, or `Displaced by higher-yielding combinations`).
+- **Individual Accepted Project Full Analysis Modal**: Dedicated comprehensive modal displaying Project Overview, 10 Capital Budgeting Metric Cards, zero-crossing cash flow line chart, complete year-by-year cash flow & PV schedule, dynamic recommendation, and collapsible step-by-step worked algebraic formulas.
 - **Testing Page (`/testing`)**: Live pass/fail table verifying the 5 textbook hand-checked cases.
 
 ---

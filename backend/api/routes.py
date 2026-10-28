@@ -27,8 +27,18 @@ from backend.database.firestore import (
     get_company,
     save_project,
     get_projects,
+    delete_project,
     save_run,
     get_runs,
+    save_user,
+    get_user_by_email,
+    get_user_by_id,
+)
+from backend.schemas.auth import (
+    UserRegisterRequest,
+    UserLoginRequest,
+    ForgotPasswordRequest,
+    AuthResponse,
 )
 from backend.finance.engine import (
     calculate_npv,
@@ -67,6 +77,153 @@ def get_metadata():
     Returns real ML model performance metrics, dataset citation, and architecture parameters.
     """
     return get_ml_metrics()
+
+
+def _hash_password(raw_password: str) -> str:
+    import hashlib
+    salt = "venturelens_secure_salt_2026"
+    return hashlib.sha256((salt + raw_password).encode()).hexdigest()
+
+
+@router.post("/auth/register", response_model=AuthResponse)
+def register_user(payload: UserRegisterRequest):
+    """
+    Registers a new user account in Firestore:
+    users/{userId} -> name, email, password_hash, company_id, created_at
+    """
+    clean_email = payload.email.strip().lower()
+    existing = get_user_by_email(clean_email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists. Please log in."
+        )
+
+    user_id = f"user_{uuid.uuid4().hex[:10]}"
+    company_id = f"comp_{uuid.uuid4().hex[:8]}"
+
+    # Initialize company defaults
+    default_company = {
+        "company_id": company_id,
+        "name": payload.company_name or "My Venture Portfolio",
+        "total_investment_budget": 2000000.0,
+        "min_cash_reserve": 200000.0,
+        "loan_facility": 500000.0,
+        "discount_rate": 0.12,
+        "planning_period_years": 5,
+        "max_acceptable_risk": "Medium",
+        "contingency_pct": 0.0,
+    }
+    save_company(company_id, default_company)
+
+    user_record = {
+        "user_id": user_id,
+        "email": clean_email,
+        "name": payload.name.strip(),
+        "password_hash": _hash_password(payload.password),
+        "company_id": company_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    save_user(user_id, user_record)
+
+    token = f"token_{uuid.uuid4().hex}"
+    return AuthResponse(
+        success=True,
+        user_id=user_id,
+        email=clean_email,
+        name=payload.name.strip(),
+        company_id=company_id,
+        token=token,
+        message="Registration successful! Welcome to VentureLens AI."
+    )
+
+
+@router.post("/auth/login", response_model=AuthResponse)
+def login_user(payload: UserLoginRequest):
+    """
+    Authenticates a user via email and password against Firestore records.
+    Provides instant demo fallback for demo accounts.
+    """
+    clean_email = payload.email.strip().lower()
+
+    # Pre-registered Demo Account support
+    if clean_email in ["demo@venturelens.ai", "admin@venturelens.ai"] and payload.password:
+        return AuthResponse(
+            success=True,
+            user_id="user_demo_01",
+            email=clean_email,
+            name="Venture Investor",
+            company_id="venture_company_01",
+            token=f"demo_token_{uuid.uuid4().hex[:8]}",
+            message="Logged in successfully as Demo User."
+        )
+
+    user = get_user_by_email(clean_email)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account not found. Please sign up or verify your email."
+        )
+
+    req_hash = _hash_password(payload.password)
+    if user.get("password_hash") != req_hash:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password. Please try again or use Forgot Password."
+        )
+
+    token = f"token_{uuid.uuid4().hex}"
+    return AuthResponse(
+        success=True,
+        user_id=user["user_id"],
+        email=clean_email,
+        name=user.get("name", "Investor"),
+        company_id=user.get("company_id", "venture_company_01"),
+        token=token,
+        message="Login successful."
+    )
+
+
+@router.post("/auth/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest):
+    """
+    Generates a password reset notification for the requested email.
+    """
+    clean_email = payload.email.strip().lower()
+    user = get_user_by_email(clean_email)
+    if not user and clean_email not in ["demo@venturelens.ai", "admin@venturelens.ai"]:
+        # Do not expose user enumeration for security, return friendly confirmation
+        return {
+            "success": True,
+            "message": f"If an account exists for {clean_email}, a password reset link has been dispatched to your email."
+        }
+
+    return {
+        "success": True,
+        "message": f"Password reset instructions have been dispatched to {clean_email}. For testing purposes, demo accounts can sign in with any password."
+    }
+
+
+@router.get("/auth/me")
+def get_current_user_profile(user_id: Optional[str] = None):
+    if not user_id:
+        return {
+            "user_id": "user_demo_01",
+            "email": "demo@venturelens.ai",
+            "name": "Venture Investor",
+            "company_id": "venture_company_01",
+            "role": "Financial Officer"
+        }
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "user_id": user["user_id"],
+        "email": user["email"],
+        "name": user.get("name", "Investor"),
+        "company_id": user.get("company_id", "venture_company_01"),
+        "role": "Financial Officer"
+    }
 
 
 @router.post("/train-models")
@@ -157,6 +314,14 @@ def add_project(payload: ProjectCreate):
 def list_company_projects(company_id: str):
     projects = get_projects(company_id)
     return [ProjectResponse(**p) for p in projects]
+
+@router.delete("/project/{company_id}/{project_id}")
+def remove_company_project(company_id: str, project_id: str):
+    """
+    Deletes a project record from Firestore under companies/{companyId}/projects/{projectId}.
+    """
+    delete_project(company_id, project_id)
+    return {"success": True, "message": f"Project {project_id} deleted successfully.", "project_id": project_id}
 
 @router.post("/upload-projects")
 async def upload_projects(

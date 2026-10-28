@@ -162,6 +162,11 @@ class InMemoryDocumentRef:
         else:
             self.store[self.path] = dict(data)
 
+    def delete(self):
+        if self.path in self.store:
+            del self.store[self.path]
+        return True
+
 
 class InMemoryCollectionRef:
     def __init__(self, store: Dict[str, Any], path: str):
@@ -260,3 +265,37 @@ def get_runs(company_id: str) -> List[Dict[str, Any]]:
     # Sort by timestamp descending
     runs.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
     return runs
+
+def delete_project(company_id: str, project_id: str) -> bool:
+    db = get_firestore_client()
+    db.collection("companies").document(company_id).collection("projects").document(project_id).delete()
+    return True
+
+def save_user(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    db = get_firestore_client()
+    if "created_at" not in data or not data["created_at"]:
+        data["created_at"] = datetime.now(timezone.utc).isoformat()
+    data["user_id"] = user_id
+    db.collection("users").document(user_id).set(data)
+    return data
+
+def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    db = get_firestore_client()
+    doc = db.collection("users").document(user_id).get()
+    if doc.exists:
+        data = doc.to_dict()
+        data["user_id"] = user_id
+        return data
+    return None
+
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    db = get_firestore_client()
+    clean_email = email.strip().lower()
+    docs = db.collection("users").stream()
+    for d in docs:
+        u = d.to_dict()
+        if u.get("email", "").strip().lower() == clean_email:
+            u["user_id"] = d.id
+            return u
+    return None
+

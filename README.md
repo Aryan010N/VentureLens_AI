@@ -114,6 +114,13 @@ The testing page executes [`GET /api/test-metrics`](https://ffm-cie-2.onrender.c
 ```
 firestore-root
 │
+├── users/{userId}
+│       email: string (e.g. "investor@venturelens.ai")
+│       name: string (e.g. "Jane Doe")
+│       password_hash: string (SHA-256 + secure salt)
+│       company_id: string (e.g. "venture_company_01")
+│       created_at: ISO8601 string
+│
 └── companies/{companyId}
     │   total_budget: number (e.g. 2000000)
     │   min_cash_reserve: number (e.g. 200000)
