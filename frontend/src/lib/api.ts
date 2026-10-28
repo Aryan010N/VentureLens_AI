@@ -154,3 +154,12 @@ export async function fetchTestMetrics(): Promise<import("./types").TestMetricsR
   }
   return res.json();
 }
+
+export async function trainMLModels(): Promise<{ status: string; message: string; metrics: MLMetrics }> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/train-models`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`Training ML models failed with status ${res.status}`);
+  }
+  return res.json();
+}

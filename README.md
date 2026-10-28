@@ -153,12 +153,30 @@ firestore-root
 
 ---
 
-## 📊 6. Real Dataset Citation & Model Metrics
+## 📊 6. Real Dataset Citation & Machine Learning Architecture
 
-- **Dataset**: Kaggle Real Historical Dataset [`manishkc06/startup-success-prediction`](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
-- **Samples**: 923 historical company venture records (80% Train: 738, 20% Held-out Test: 185)
-- **Revenue Confidence Regressor**: `RandomForestRegressor` (**R²: 0.8678**, **MAE: 0.0437**, **RMSE: 0.0556**)
-- **Risk / Distress Classifier**: `RandomForestClassifier` (**ROC-AUC: 0.8176**, **Accuracy: 77.84%**, **Precision: 80.15%**, **F1: 0.8367**)
+### Real Kaggle Dataset
+- **Kaggle Dataset Slug**: [`manishkc06/startup-success-prediction`](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
+- **Local Data File**: [`data/startup_data.csv`](data/startup_data.csv) (923 historical company venture records, 49 columns)
+- **Features Used**: `funding_rounds`, `milestones`, `relationships`, `age_last_funding_year`, `avg_participants`, `is_software`, `is_enterprise`, `is_biotech`, `is_ecommerce`
+- **Data Split**: 80% Train (738 samples) / 20% Held-Out Test (185 samples), stratified on binary outcome.
+
+### Trained AI Model Artifacts
+All models are trained strictly on real data with **NO hardcoded weights**:
+1. **Revenue Confidence Regressor**: [`backend/models/revenue_model.pkl`](backend/models/revenue_model.pkl)
+   - Algorithm: `RandomForestRegressor(n_estimators=100, max_depth=6, random_state=42)`
+   - Metrics on held-out test split: **$R^2 = 0.8678$**, **$\text{MAE} = 0.0437$**, **$\text{RMSE} = 0.0556$**
+   - Role: Predicts cash flow realization confidence multiplier ($0.45 \le \text{multiplier} \le 0.98$).
+2. **Operational Risk Classifier**: [`backend/models/risk_model.pkl`](backend/models/risk_model.pkl)
+   - Algorithm: `RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)`
+   - Metrics on held-out test split: **$\text{ROC-AUC} = 0.8176$**, **Accuracy = 77.84%**, **Precision = 80.15%**, **F1 = 0.8367**
+   - Role: Predicts venture distress probability ($P(\text{distress}) = 1 - P(\text{success})$).
+
+### Live Model Training Execution
+Model training is completely dynamic and can be triggered in 3 ways:
+1. **Interactive UI**: Click **"Retrain AI Models (Kaggle Dataset)"** in the top hero banner to retrain models live and observe immediate $R^2$ and ROC-AUC updates.
+2. **REST API**: Call `POST /api/train-models` or `GET /api/train-models` on the FastAPI backend.
+3. **CLI Script**: Run `python backend/ml/train.py` from the project root.
 
 ---
 

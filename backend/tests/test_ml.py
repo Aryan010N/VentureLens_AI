@@ -50,3 +50,13 @@ def test_metrics_retrieval():
     metrics = get_ml_metrics()
     assert "dataset_slug" in metrics
     assert metrics["dataset_slug"] == "manishkc06/startup-success-prediction"
+
+def test_train_models_pipeline():
+    from backend.ml.train import train_models
+    metrics = train_models()
+    assert metrics["train_samples"] > 0
+    assert metrics["test_samples"] > 0
+    assert "revenue_confidence_model" in metrics
+    assert "risk_classifier_model" in metrics
+    assert metrics["revenue_confidence_model"]["r2_score"] > 0.50
+    assert metrics["risk_classifier_model"]["roc_auc"] > 0.60

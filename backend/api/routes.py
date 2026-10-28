@@ -45,6 +45,7 @@ from backend.ml.predict import (
     generate_deterministic_scenarios,
     get_ml_metrics,
 )
+from backend.ml.train import train_models
 from backend.optimization.allocator import solve_portfolio_allocation
 from backend.preprocessing.clean import parse_and_clean_file
 
@@ -66,6 +67,30 @@ def get_metadata():
     Returns real ML model performance metrics, dataset citation, and architecture parameters.
     """
     return get_ml_metrics()
+
+
+@router.post("/train-models")
+@router.get("/train-models")
+def trigger_train_models():
+    """
+    Executes live model training using the real Kaggle dataset (data/startup_data.csv).
+    Trains RandomForestRegressor and RandomForestClassifier, evaluates on held-out test split,
+    serializes models to disk, and updates performance metrics.
+    """
+    try:
+        metrics = train_models()
+        return {
+            "status": "success",
+            "message": "AI models trained successfully on real Kaggle startup success dataset",
+            "dataset_path": "data/startup_data.csv",
+            "metrics": metrics
+        }
+    except Exception as e:
+        logger.error(f"Training failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Model training failed: {str(e)}"
+        )
 
 @router.post("/company", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
 def create_or_update_company(payload: CompanyCreate):
@@ -543,9 +568,26 @@ def optimize_company_portfolio(payload: OptimizationRequest):
 def get_company_runs_history(company_id: str):
     """
     Fetches the historical record of all optimization runs executed by this company from Firestore.
+    Gracefully handles and upgrades any legacy runs stored in the cloud database.
     """
     runs = get_runs(company_id)
-    return [OptimizationResponse(**r) for r in runs]
+    results = []
+    for r in runs:
+        try:
+            results.append(OptimizationResponse(**r))
+        except Exception as err:
+            logger.warning(f"Upgrading legacy run {r.get('run_id')}: {err}")
+            try:
+                allocs = []
+                for a in r.get("allocations", []):
+                    if "selected" not in a:
+                        a["selected"] = a.get("decision") in ["Selected", "ACCEPT"]
+                    allocs.append(AllocationItem(**a))
+                r["allocations"] = [a.model_dump() for a in allocs]
+                results.append(OptimizationResponse(**r))
+            except Exception as e2:
+                logger.error(f"Failed to adapt legacy run {r.get('run_id')}: {e2}")
+    return results
 
 
 @router.get("/test-metrics")

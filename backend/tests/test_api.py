@@ -92,3 +92,11 @@ def test_full_api_workflow():
     runs = res_runs.json()
     assert len(runs) >= 1
     assert runs[0]["run_id"] == opt_data["run_id"]
+
+    # 8. Check Train Models endpoint
+    res_train = client.post("/api/train-models")
+    assert res_train.status_code == 200
+    train_data = res_train.json()
+    assert train_data["status"] == "success"
+    assert "metrics" in train_data
+    assert train_data["metrics"]["train_samples"] > 0

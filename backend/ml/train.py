@@ -21,8 +21,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("venturelens.ml.train")
 
 DATASET_SLUG = "manishkc06/startup-success-prediction"
-DATA_PATH = os.path.join("data", "startup_data.csv")
-MODELS_DIR = os.path.join("backend", "models")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+DATA_PATH = os.path.join(BASE_DIR, "data", "startup_data.csv")
+MODELS_DIR = os.path.join(BASE_DIR, "backend", "models")
 
 FEATURE_COLS = [
     "funding_rounds",

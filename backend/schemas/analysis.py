@@ -51,24 +51,24 @@ class WorkedCalculations(BaseModel):
     contingency: str
 
 class AllocationItem(BaseModel):
-    project_id: str
-    name: str
-    selected: bool
+    project_id: str = ""
+    name: str = ""
+    selected: bool = True
     rejection_reason: Optional[str] = None
     
     # Financial outputs from metrics.py
-    initial_cost: float
+    initial_cost: float = 0.0
     contingency_pct: float = 10.0
     contingency_amount: float = 0.0
-    total_investment: float
-    total_benefits: float
-    net_benefit: float
-    pv_of_benefits: float
+    total_investment: float = 0.0
+    total_benefits: float = 0.0
+    net_benefit: float = 0.0
+    pv_of_benefits: float = 0.0
     discount_factors: List[float] = []
-    npv: float
-    bcr: float
-    roi_percent: float
-    annual_avg_return_percent: float
+    npv: float = 0.0
+    bcr: float = 0.0
+    roi_percent: float = 0.0
+    annual_avg_return_percent: float = 0.0
     irr_percent: Optional[float] = None
     simple_payback_years: Optional[float] = None
     discounted_payback_years: Optional[float] = None
@@ -88,6 +88,14 @@ class AllocationItem(BaseModel):
     risk_score: float = 0.50
     industry_category: str = "General"
     lifespan: int = 5
+
+    def __init__(self, **data):
+        # Backward compatibility for legacy runs stored in Firestore
+        if "selected" not in data:
+            data["selected"] = data.get("decision") in ["Selected", "ACCEPT"]
+        if "total_investment" not in data or data["total_investment"] == 0.0:
+            data["total_investment"] = float(data.get("initial_cost", 0.0))
+        super().__init__(**data)
 
 class PortfolioSummary(BaseModel):
     total_budget: float

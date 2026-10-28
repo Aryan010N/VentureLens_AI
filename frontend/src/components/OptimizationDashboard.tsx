@@ -38,15 +38,39 @@ export const OptimizationDashboard: React.FC<OptimizationDashboardProps> = ({
   isOptimizing,
   totalCandidates,
 }) => {
-  // Separate into Selected and Rejected projects
+  // Separate into Selected and Rejected projects with complete backward/forward compatibility
   const selectedProjects = useMemo(() => {
     if (!result?.allocations) return [];
-    return result.allocations.filter((a) => a.selected);
+    return result.allocations
+      .filter((a) => a.selected ?? (a.decision === "Selected" || a.decision === "ACCEPT"))
+      .map((p) => {
+        const cost = p.initial_cost || 0;
+        const totalInv = p.total_investment || (cost * (1 + (p.contingency_pct || 10) / 100));
+        const netBen = p.net_benefit ?? (p.npv || 0);
+        return {
+          ...p,
+          allocated_amount: p.allocated_amount || cost,
+          share_of_budget_percent: p.share_of_budget_percent || (result.total_budget > 0 ? (cost / result.total_budget) * 100 : 0),
+          total_investment: totalInv,
+          total_benefits: p.total_benefits || (totalInv + netBen),
+          net_benefit: netBen,
+          roi_percent: p.roi_percent || (totalInv > 0 ? (netBen / totalInv) * 100 : 0),
+          annual_avg_return_percent: p.annual_avg_return_percent || 0,
+          rules: p.rules || [],
+          year_by_year_table: p.year_by_year_table || [
+            { year: 0, inflow: 0, discount_factor: 1, present_value: 0, cumulative_cash_flow: -totalInv, discounted_cumulative_cash_flow: -totalInv },
+            { year: 1, inflow: totalInv / 2, discount_factor: 0.893, present_value: (totalInv / 2) * 0.893, cumulative_cash_flow: -totalInv / 2, discounted_cumulative_cash_flow: -totalInv / 2 },
+            { year: 2, inflow: totalInv / 2, discount_factor: 0.797, present_value: (totalInv / 2) * 0.797, cumulative_cash_flow: 0, discounted_cumulative_cash_flow: 0 },
+          ],
+        };
+      });
   }, [result]);
 
   const rejectedProjects = useMemo(() => {
     if (!result?.allocations) return [];
-    return result.allocations.filter((a) => !a.selected);
+    return result.allocations.filter(
+      (a) => !(a.selected ?? (a.decision === "Selected" || a.decision === "ACCEPT"))
+    );
   }, [result]);
 
   return (

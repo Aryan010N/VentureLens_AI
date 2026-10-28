@@ -72,6 +72,9 @@ export default function Home() {
       if (pastRuns && pastRuns.length > 0) {
         setRunHistory(pastRuns);
         setOptimizationResult(pastRuns[0]);
+      } else if (!existingProjects || existingProjects.length === 0) {
+        // Initial setup: auto-load spec worked example so the dashboard and cards are immediately visible
+        handleLoadSpecDemo().catch(() => {});
       }
     } catch (err: any) {
       console.warn("Could not fetch initial data from backend:", err);
