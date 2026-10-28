@@ -12,6 +12,15 @@ from backend.schemas.analysis import (
     ProjectFinancials,
     CashFlowTimelinePoint,
     AllocationItem,
+    PortfolioSummary,
+    MetricRuleEvaluation,
+    YearByYearPoint,
+    WorkedCalculations,
+)
+from backend.finance.metrics import (
+    compute_project_metrics,
+    calculate_irr_percent,
+    calculate_payback_years,
 )
 from backend.database.firestore import (
     save_company,
@@ -341,11 +350,23 @@ def optimize_company_portfolio(payload: OptimizationRequest):
     budget = float(payload.override_budget or company.get("total_investment_budget", 2000000.0))
     discount_rate = float(payload.override_discount_rate or company.get("discount_rate", 0.12))
     max_risk = str(payload.override_max_risk or company.get("max_acceptable_risk", "Medium"))
+    contingency_pct = float(
+        payload.contingency_pct
+        if payload.contingency_pct is not None
+        else company.get("contingency_pct", 0.0)
+    )
     reserve = float(company.get("min_cash_reserve", 200000.0))
     loan_fac = float(company.get("loan_facility", 500000.0))
 
-    # Evaluate candidate project metrics
+    risk_threshold = 0.70
+    if str(max_risk).lower() == "low":
+        risk_threshold = 0.40
+    elif str(max_risk).lower() == "high":
+        risk_threshold = 0.95
+
+    # 1. Evaluate preliminary metrics and risk for candidate projects
     candidates = []
+    project_metadata_map = {}
     for p in projects_raw:
         pid = p["project_id"]
         cost = float(p.get("initial_cost", 0.0))
@@ -360,18 +381,40 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             duration_years=duration,
             initial_cost=cost
         )
-        npv = calculate_npv(flows, discount_rate=discount_rate, initial_cost=cost)
+        prelim_metrics = compute_project_metrics(
+            initial_cost=cost,
+            inflows=flows,
+            discount_rate=discount_rate,
+            contingency_pct=contingency_pct,
+            planning_horizon=duration,
+            project_id=pid,
+            name=p.get("name", pid),
+            risk_category=risk_cat,
+            risk_score=risk_score,
+            industry_category=ind_cat,
+        )
+
+        project_metadata_map[pid] = {
+            "cost": cost,
+            "flows": flows,
+            "duration": duration,
+            "risk_score": risk_score,
+            "risk_category": risk_cat,
+            "industry_category": ind_cat,
+            "prelim_metrics": prelim_metrics,
+            "name": p.get("name", pid),
+        }
 
         candidates.append({
             "project_id": pid,
             "name": p.get("name", pid),
             "initial_cost": cost,
-            "npv": npv,
+            "npv": prelim_metrics["npv"],
             "risk_score": risk_score,
             "risk_category": risk_cat,
         })
 
-    # Run optimizer
+    # 2. Run mathematical integer solver
     opt_result = solve_portfolio_allocation(
         projects=candidates,
         total_budget=budget,
@@ -381,10 +424,85 @@ def optimize_company_portfolio(payload: OptimizationRequest):
         allow_loan_usage=False
     )
 
+    selected_ids = set(opt_result["selected_project_ids"])
+    unallocated_budget = opt_result["unallocated_budget"]
+
+    # 3. Compute comprehensive metrics for EVERY project (Selected and Rejected)
+    allocations_list = []
+    for p in projects_raw:
+        pid = p["project_id"]
+        meta = project_metadata_map[pid]
+        cost = meta["cost"]
+        is_selected = pid in selected_ids
+        rejection_reason = None
+
+        if not is_selected:
+            m = meta["prelim_metrics"]
+            if m["npv"] <= 0:
+                rejection_reason = f"NPV negative: Expected return (NPV: ₹{m['npv']:,.0f}) is non-positive, destroying capital value."
+            elif meta["risk_score"] > risk_threshold:
+                rejection_reason = f"Exceeds risk ceiling: Project risk score ({meta['risk_score']:.2f}) exceeds portfolio {max_risk} ceiling ({risk_threshold:.2f})."
+            elif cost > unallocated_budget:
+                rejection_reason = f"Budget exhausted: Required outlay (₹{cost:,.0f}) exceeds remaining unallocated budget (₹{unallocated_budget:,.0f})."
+            else:
+                rejection_reason = "Displaced by higher-yielding project combinations to maximize total portfolio return under capital constraints."
+
+        allocated_amount = cost if is_selected else 0.0
+
+        full_metrics = compute_project_metrics(
+            initial_cost=cost,
+            inflows=meta["flows"],
+            discount_rate=discount_rate,
+            contingency_pct=contingency_pct,
+            planning_horizon=meta["duration"],
+            allocated_amount=allocated_amount,
+            total_budget=budget,
+            project_id=pid,
+            name=meta["name"],
+            risk_category=meta["risk_category"],
+            risk_score=meta["risk_score"],
+            industry_category=meta["industry_category"],
+        )
+        full_metrics["selected"] = is_selected
+        full_metrics["rejection_reason"] = rejection_reason
+
+        allocations_list.append(AllocationItem(**full_metrics))
+
+    # 4. Compute Portfolio Summary Metrics
+    selected_items = [a for a in allocations_list if a.selected]
+    tot_allocated = sum(a.allocated_amount for a in selected_items)
+    tot_inv = sum(a.total_investment for a in selected_items)
+    tot_net_benefit = sum(a.net_benefit for a in selected_items)
+    tot_pv_benefits = sum(a.pv_of_benefits for a in selected_items)
+
+    portfolio_roi = round((tot_net_benefit / tot_inv * 100.0), 2) if tot_inv > 0 else 0.0
+    portfolio_bcr = round((tot_pv_benefits / tot_inv), 3) if tot_inv > 0 else 0.0
+
+    valid_paybacks = [a for a in selected_items if a.simple_payback_years is not None]
+    if valid_paybacks:
+        weighted_pb = round(
+            sum(a.simple_payback_years * a.total_investment for a in valid_paybacks)
+            / sum(a.total_investment for a in valid_paybacks),
+            2
+        )
+    else:
+        weighted_pb = None
+
+    port_summary = PortfolioSummary(
+        total_budget=budget,
+        total_allocated=tot_allocated,
+        unallocated_cash=unallocated_budget,
+        min_cash_reserve=reserve,
+        loan_facility=loan_fac,
+        loan_facility_used=0.0,
+        portfolio_npv=opt_result["total_npv_optimized"],
+        portfolio_roi_percent=portfolio_roi,
+        portfolio_bcr=portfolio_bcr,
+        weighted_average_payback=weighted_pb,
+    )
+
     run_id = f"run_{uuid.uuid4().hex[:8]}"
     timestamp = datetime.now(timezone.utc).isoformat()
-
-    allocations_list = [AllocationItem(**a) for a in opt_result["allocations"]]
 
     run_record = {
         "run_id": run_id,
@@ -409,7 +527,10 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             "min_cash_reserve": reserve,
             "max_acceptable_risk": max_risk,
             "discount_rate": discount_rate,
-        }
+            "contingency_pct": contingency_pct,
+            "loan_facility": loan_fac,
+        },
+        "portfolio_summary": port_summary.model_dump(),
     }
 
     # Save to Firestore collection companies/{companyId}/runs/{runId}
@@ -425,3 +546,146 @@ def get_company_runs_history(company_id: str):
     """
     runs = get_runs(company_id)
     return [OptimizationResponse(**r) for r in runs]
+
+
+@router.get("/test-metrics")
+def run_unit_tests_metrics():
+    """
+    Executes the 5 hand-checked textbook unit tests programmatically
+    and returns a structured pass/fail verification table with expected vs actual values.
+    """
+    import time
+    start_time = time.perf_counter()
+    results = []
+
+    # Case 1: Cost 600000, annual inflow 150000 for 6 years -> simple payback 4.0 years
+    t1_res = compute_project_metrics(
+        initial_cost=600000.0,
+        inflows=[150000.0] * 6,
+        discount_rate=0.10,
+        contingency_pct=0.0,
+    )
+    c1_pass = t1_res["simple_payback_years"] == 4.0
+    results.append({
+        "id": "TC-01",
+        "name": "Linear Uniform Inflows Payback",
+        "scenario": "Cost 600,000, annual inflow 150,000 for 6 years",
+        "inputs": {"initial_cost": 600000, "inflows": [150000]*6, "discount_rate": 0.10, "contingency_pct": 0},
+        "target_metric": "Simple Payback Period",
+        "expected": "4.00 years",
+        "actual": f"{t1_res['simple_payback_years']:.2f} years",
+        "passed": bool(c1_pass),
+        "worked_formula": "Cumulative method: 600,000 / 150,000 = exactly 4.00 years"
+    })
+
+    # Case 2: Cost 1000000, total profit 200000 -> ROI 20%
+    t2_res = compute_project_metrics(
+        initial_cost=1000000.0,
+        inflows=[1200000.0],
+        discount_rate=0.10,
+        contingency_pct=0.0,
+    )
+    c2_pass = (t2_res["net_benefit"] == 200000.0 and t2_res["roi_percent"] == 20.0)
+    results.append({
+        "id": "TC-02",
+        "name": "Profitability & ROI Verification",
+        "scenario": "Cost 1,000,000, total profit 200,000",
+        "inputs": {"initial_cost": 1000000, "inflows": [1200000], "discount_rate": 0.10, "contingency_pct": 0},
+        "target_metric": "ROI %",
+        "expected": "20.00%",
+        "actual": f"{t2_res['roi_percent']:.2f}%",
+        "passed": bool(c2_pass),
+        "worked_formula": "ROI = (Net Profit / Investment) × 100 = (200,000 / 1,000,000) × 100 = 20.00%"
+    })
+
+    # Case 3: Cost 10,00,000, 12% rate, inflows 3,4,4,3,3 lakh (contingency 0) -> payback 2.75 years, NPV about +2.32 lakh, BCR about 1.23, ROI 70%, IRR about 21%
+    t3_res = compute_project_metrics(
+        initial_cost=1000000.0,
+        inflows=[300000.0, 400000.0, 400000.0, 300000.0, 300000.0],
+        discount_rate=0.12,
+        contingency_pct=0.0,
+    )
+    c3_pass = (
+        t3_res["simple_payback_years"] == 2.75
+        and abs(t3_res["npv"] - 232330.27) < 1.0
+        and abs(t3_res["bcr"] - 1.232) < 0.01
+        and t3_res["roi_percent"] == 70.0
+        and t3_res["irr_percent"] is not None
+        and abs(t3_res["irr_percent"] - 21.12) < 0.1
+        and t3_res["decision"] == "ACCEPT"
+    )
+    results.append({
+        "id": "TC-03",
+        "name": "Full Multi-Year Capital Budgeting Case",
+        "scenario": "Cost 10L, 12% discount rate, inflows 3,4,4,3,3 lakh (contingency 0)",
+        "inputs": {"initial_cost": 1000000, "inflows": [300000, 400000, 400000, 300000, 300000], "discount_rate": 0.12, "contingency_pct": 0},
+        "target_metric": "Payback 2.75y, NPV +₹2.32L, BCR 1.23, ROI 70%, IRR 21%",
+        "expected": "Payback 2.75y, NPV ₹2,32,330, BCR 1.232, ROI 70%, IRR 21.12%",
+        "actual": f"Payback {t3_res['simple_payback_years']:.2f}y, NPV ₹{t3_res['npv']:,.0f}, BCR {t3_res['bcr']:.3f}, ROI {t3_res['roi_percent']:.1f}%, IRR {t3_res['irr_percent']:.2f}%",
+        "passed": bool(c3_pass),
+        "worked_formula": t3_res["worked_calculations"]["payback"]
+    })
+
+    # Case 4: A project that never recovers cost -> payback null, decision REJECT
+    t4_res = compute_project_metrics(
+        initial_cost=1000000.0,
+        inflows=[100000.0, 100000.0],
+        discount_rate=0.12,
+        contingency_pct=0.0,
+    )
+    c4_pass = (t4_res["simple_payback_years"] is None and t4_res["decision"] == "REJECT")
+    results.append({
+        "id": "TC-04",
+        "name": "Unrecovered Investment & Automatic Rejection",
+        "scenario": "Project never recovers outlay (Inflows 200k vs Outlay 1M)",
+        "inputs": {"initial_cost": 1000000, "inflows": [100000, 100000], "discount_rate": 0.12, "contingency_pct": 0},
+        "target_metric": "Payback is null and decision is REJECT",
+        "expected": "Payback: null, Decision: REJECT",
+        "actual": f"Payback: {t4_res['simple_payback_years']}, Decision: {t4_res['decision']}",
+        "passed": bool(c4_pass),
+        "worked_formula": "Cumulative inflows (₹2,00,000) < Outlay (₹10,00,000); NPV is negative; REJECT"
+    })
+
+    # Case 5: Contingency 10% increases total_investment and lowers NPV
+    t5_0 = compute_project_metrics(
+        initial_cost=1000000.0,
+        inflows=[300000.0, 400000.0, 400000.0, 300000.0, 300000.0],
+        discount_rate=0.12,
+        contingency_pct=0.0,
+    )
+    t5_10 = compute_project_metrics(
+        initial_cost=1000000.0,
+        inflows=[300000.0, 400000.0, 400000.0, 300000.0, 300000.0],
+        discount_rate=0.12,
+        contingency_pct=10.0,
+    )
+    c5_pass = (
+        t5_10["total_investment"] > t5_0["total_investment"]
+        and t5_10["npv"] < t5_0["npv"]
+        and round(t5_0["npv"] - t5_10["npv"], 2) == 100000.0
+    )
+    results.append({
+        "id": "TC-05",
+        "name": "Contingency Impact on Capital & NPV",
+        "scenario": "Contingency 10% increases total_investment and lowers NPV",
+        "inputs": {"initial_cost": 1000000, "contingency_pct": 10.0, "discount_rate": 0.12},
+        "target_metric": "total_investment rises by 100k, NPV drops by exactly 100k",
+        "expected": "Investment: 1.10M (> 1.0M), NPV: ₹1,32,330 (< ₹2,32,330)",
+        "actual": f"Investment: ₹{t5_10['total_investment']:,.0f}, NPV: ₹{t5_10['npv']:,.0f} (Difference: -₹{t5_0['npv'] - t5_10['npv']:,.0f})",
+        "passed": bool(c5_pass),
+        "worked_formula": "Contingency = 10% × 10L = 1L reserve; Total Outlay = 11L; NPV delta = -1L"
+    })
+
+    elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
+    passed_count = sum(1 for r in results if r["passed"])
+
+    return {
+        "suite": "VentureLens AI Deterministic Metrics Hand-Checked Test Suite",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total": len(results),
+        "passed": passed_count,
+        "failed": len(results) - passed_count,
+        "all_passed": passed_count == len(results),
+        "execution_time_ms": elapsed_ms,
+        "test_cases": results
+    }

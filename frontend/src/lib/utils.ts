@@ -5,20 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatINR(val: number): string {
-  if (Math.abs(val) >= 10000000) {
-    return `₹${(val / 10000000).toFixed(2)} Cr`;
+export function formatINR(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(val)) return "N/A";
+  const abs = Math.abs(val);
+  const sign = val < 0 ? "-" : "";
+
+  if (abs >= 10000000) {
+    return `${sign}₹${(abs / 10000000).toFixed(2)} Cr`;
   }
-  if (Math.abs(val) >= 100000) {
-    return `₹${(val / 100000).toFixed(2)} Lakh`;
+  if (abs >= 100000) {
+    return `${sign}₹${(abs / 100000).toFixed(2)} Lakh`;
   }
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  return `${sign}₹${new Intl.NumberFormat("en-IN", {
     maximumFractionDigits: 0,
-  }).format(val);
+  }).format(abs)}`;
 }
 
-export function formatPct(val: number): string {
-  return `${(val * 100).toFixed(1)}%`;
+export function formatPct(val: number | null | undefined): string {
+  if (val === null || val === undefined || isNaN(val)) return "N/A";
+  return `${val.toFixed(1)}%`;
 }

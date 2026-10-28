@@ -123,6 +123,7 @@ export async function optimizePortfolio(
     override_budget?: number;
     override_max_risk?: string;
     override_discount_rate?: number;
+    contingency_pct?: number;
   }
 ): Promise<OptimizationResult> {
   const base = getApiBaseUrl();
@@ -142,5 +143,14 @@ export async function fetchRunHistory(companyId: string): Promise<OptimizationRe
   const base = getApiBaseUrl();
   const res = await fetch(`${base}/api/runs/${companyId}`);
   if (!res.ok) return [];
+  return res.json();
+}
+
+export async function fetchTestMetrics(): Promise<import("./types").TestMetricsResponse> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/test-metrics`);
+  if (!res.ok) {
+    throw new Error(`Failed to execute test suite: ${res.statusText}`);
+  }
   return res.json();
 }

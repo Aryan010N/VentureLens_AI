@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Database, ShieldCheck, TrendingUp, Layers, BookOpen, Award } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Database, ShieldCheck, TrendingUp, Layers, BookOpen, Award, FileCheck2 } from "lucide-react";
 
 interface HeroProps {
   onLoadSpecDemo: () => void;
@@ -34,6 +35,13 @@ export const Hero: React.FC<HeroProps> = ({
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
               PuLP 0-1 Optimization
             </span>
+            <Link
+              href="/testing"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-colors"
+            >
+              <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
+              Testing Page (5/5 PASS)
+            </Link>
             <a
               href={`https://www.kaggle.com/datasets/${datasetSlug}`}
               target="_blank"
@@ -79,6 +87,14 @@ export const Hero: React.FC<HeroProps> = ({
             <TrendingUp className="w-4 h-4" />
             Load Spec Worked Example (₹20L)
           </button>
+
+          <Link
+            href="/testing"
+            className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-emerald-500/30 text-emerald-300 font-bold text-xs transition-all active:scale-95 text-center"
+          >
+            <FileCheck2 className="w-4 h-4 text-emerald-400" />
+            View Unit Tests & Verification Page
+          </Link>
 
           <div className="p-4 rounded-xl glass-panel border border-teal-500/20 text-xs space-y-2">
             <div className="flex items-center justify-between text-slate-300">

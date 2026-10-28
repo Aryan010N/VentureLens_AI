@@ -21,6 +21,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({
   const [discountRate, setDiscountRate] = useState<number>(company.discount_rate ? company.discount_rate * 100 : 12);
   const [planningYears, setPlanningYears] = useState<number>(company.planning_period_years || 5);
   const [riskTolerance, setRiskTolerance] = useState<"Low" | "Medium" | "High">(company.max_acceptable_risk || "Medium");
+  const [contingencyPct, setContingencyPct] = useState<number>(company.contingency_pct !== undefined ? company.contingency_pct : 10);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -32,6 +33,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({
     setDiscountRate(company.discount_rate > 1 ? company.discount_rate : company.discount_rate * 100);
     setPlanningYears(company.planning_period_years);
     setRiskTolerance(company.max_acceptable_risk);
+    setContingencyPct(company.contingency_pct !== undefined ? company.contingency_pct : 10);
   }, [company]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,6 +55,7 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({
         discount_rate: discountRate / 100,
         planning_period_years: planningYears,
         max_acceptable_risk: riskTolerance,
+        contingency_pct: contingencyPct,
       });
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 4000);
@@ -227,6 +230,27 @@ export const CompanySetup: React.FC<CompanySetupProps> = ({
             </div>
             <p className="text-[11px] text-slate-500">
               Risk ceiling applied by PuLP optimizer
+            </p>
+          </div>
+
+          {/* Capital Contingency % */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              <Percent className="w-4 h-4 text-teal-400" />
+              Contingency Reserve % (Default 10%)
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="50"
+              step="1"
+              value={contingencyPct}
+              onChange={(e) => setContingencyPct(Number(e.target.value))}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 text-white font-medium text-sm transition-all"
+              required
+            />
+            <p className="text-[11px] text-slate-500">
+              Contingency added to project outlays (default: 10%, 0% for spec)
             </p>
           </div>
         </div>

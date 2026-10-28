@@ -1,7 +1,8 @@
 # VentureLens AI — Multi-Project Capital Allocation Advisor
-> **FFM CIE-2 Academic Project** | Next.js · FastAPI · Firebase Firestore · PuLP 0-1 Optimization · Scikit-Learn Real Data Models
+> **FFM CIE-2 Academic Project** | Next.js 14 · FastAPI · Firebase Firestore · PuLP 0-1 Optimization · Scikit-Learn Real Data Models · Deterministic Financial Metrics Engine
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20%2B%20Render-teal?style=for-the-badge&logo=vercel)](https://venturelens-ai.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20%2B%20Render-teal?style=for-the-badge&logo=vercel)](https://venture-lens-ai-delta.vercel.app)
+[![Testing Page](https://img.shields.io/badge/Testing%20Page-5%2F5%20Hand--Checked%20Pass-emerald?style=for-the-badge&logo=pytest)](https://venture-lens-ai-delta.vercel.app/testing)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Aryan010N%2FVentureLens__AI-14b8a6?style=for-the-badge&logo=github)](https://github.com/Aryan010N/VentureLens_AI)
 [![Kaggle Dataset](https://img.shields.io/badge/Kaggle-manishkc06%2Fstartup--success--prediction-20beff?style=for-the-badge&logo=kaggle)](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
 [![Database](https://img.shields.io/badge/Database-Firebase%20Firestore-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com)
@@ -19,27 +20,30 @@ A project that appears profitable on a standalone basis might:
 
 **VentureLens AI** solves this problem by acting as an end-to-end decision-making system. It combines:
 - **Real Historical Machine Learning**: Estimates operational revenue confidence and distress probabilities trained on real startup success data.
-- **Deterministic Finance Engine**: Calculates textbook-correct NPV, IRR, Payback, Discounted Payback, Break-Even, and cash reserve breach points.
-- **PuLP Mathematical Optimization**: Solves the 0-1 binary integer linear programming problem to maximize portfolio NPV subject to budget caps, risk ceilings, and liquidity reserves, providing clear rule-based rejection justifications for excluded initiatives.
+- **Deterministic Finance Engine & Metrics Module (`metrics.py`)**: Calculates textbook-correct NPV, IRR (Newton-Raphson/bisection solver), simple and discounted Payback (linear interpolation), BCR, ROI, annual average return, break-even year, cash flow schedules, and contingency reserves.
+- **PuLP Mathematical Optimization**: Solves 0-1 binary integer linear programming to maximize portfolio NPV subject to budget caps, risk ceilings, and liquidity reserves, providing clear rule-based rejection justifications for excluded initiatives.
 
 > **Important Disclosure**: ML predictions are estimates based on historical Kaggle startup data, not guaranteed returns. Illustrative spec numbers are used only as UI placeholder values, never as training data.
 
 ---
 
-## 📚 2. Full FFM (Foundations of Financial Management) Concept Coverage
+## 📚 2. Full FFM Concept Coverage & The `metrics.py` Engine
 
-| FFM Domain | Specific Concept Implemented in Engine | Implementation Location |
-| :--- | :--- | :--- |
-| **Capital Budgeting** | Net Present Value ($\text{NPV} = \sum_{t=0}^n \frac{CF_t}{(1+r)^t}$) with hurdle rate discounting | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Project Rate of Return** | Internal Rate of Return ($\text{IRR}$ where $\text{NPV} = 0$) using `numpy_financial` and Newton-Raphson | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Capital Recovery** | Linear interpolation Payback Period and Discounted Payback Period | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Cost-Volume-Profit** | Break-Even Point (Units and Revenue) with Contribution Margin analysis | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Benefit-Cost Index** | Profitability Index ($\text{PI} = \frac{\text{PV of Future Inflows}}{\text{Initial Outlay}}$) | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Liquidity & Cash Flow** | Multi-year cash timeline with automatic flagging of minimum cash reserve breaches | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Sources of Finance** | Capital sourcing breakdown: Internal Equity vs. Loan Facilities, Borrowing Ratio, and Interest Burden | [`backend/finance/engine.py`](backend/finance/engine.py) |
-| **Financial Risk & Distress** | Machine learning risk classifier trained on real historical dataset ($P(\text{distress}) = 1 - P(\text{success})$) | [`backend/ml/predict.py`](backend/ml/predict.py) |
-| **Cash-Flow Uncertainty** | Machine learning revenue confidence multiplier and deterministic 3-tier scenario analysis | [`backend/ml/predict.py`](backend/ml/predict.py) |
-| **Portfolio Capital Allocation** | Binary 0-1 Knapsack Optimization maximizing aggregate NPV under budget and risk limits | [`backend/optimization/allocator.py`](backend/optimization/allocator.py) |
+| FFM Domain | Metric / Concept | Formula & Rule | Implementation |
+| :--- | :--- | :--- | :--- |
+| **Capital Contingency** | Contingency Reserve & Total Investment | $\text{Contingency} = \text{Cost} \times \frac{\text{pct}}{100}$, $\text{Total Inv} = \text{Cost} + \text{Contingency}$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Capital Budgeting** | Net Present Value ($\text{NPV}$) | $\text{NPV} = \sum_{t=1}^n \frac{CF_t}{(1+r)^t} - \text{Total Inv}$ (> 0 accept) | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Benefit-Cost Index** | Benefit-Cost Ratio ($\text{BCR}$) | $\text{BCR} = \frac{\text{PV of Inflows}}{\text{Total Inv}}$ (> 1.0 accept) | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Return on Investment** | Accounting ROI % | $\text{ROI} = \frac{\text{Net Benefit}}{\text{Total Inv}} \times 100$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Average Annual Return** | Annualized Return % | $\text{Annual Return} = \frac{\text{ROI}}{\text{Lifespan}}$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Project Rate of Return** | Internal Rate of Return ($\text{IRR}$) | Numerical root solver ($\text{NPV}(r) = 0$), null if no sign change | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Capital Recovery** | Simple Payback Period | Cumulative method + linear interpolation: $(t-1) + \frac{\text{Unrecovered}}{CF_t}$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Discounted Recovery** | Discounted Payback Period | Same linear interpolation applied on discounted inflows | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Break-Even Timing** | Break-Even Year | First operating year where cumulative cash flow $\ge 0$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Decision Rules** | 0-1 Acceptance Rules | $\text{ACCEPT}$ iff $\text{NPV} > 0 \land \text{BCR} > 1.0 \land \text{IRR} > r$, else $\text{REJECT}$ | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Plain-English Synthesis**| Interpretation Sentence | Generates corporate advisor summary explaining recovery and yield | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Worked Calculations** | Step-by-Step Substitutions | Formatted string showing exact algebraic substitutions (e.g. $2 + \frac{3}{4} = 2.75$y) | [`backend/finance/metrics.py`](backend/finance/metrics.py) |
+| **Portfolio Allocation** | Binary Integer 0-1 Knapsack | $\max \sum \text{NPV}_i x_i \text{ s.t. } \sum c_i x_i \le \text{Budget}, \text{Risk} \le \text{Threshold}$ | [`backend/optimization/allocator.py`](backend/optimization/allocator.py) |
 
 ---
 
@@ -66,12 +70,12 @@ graph TD
         Reg & Cls --> Scen[Deterministic 3-Tier Scenario Generator]
     end
 
-    subgraph Financial Engineering Engine
-        Scen --> Fin[Deterministic Textbook Finance Engine: NPV / IRR / Payback / BreakEven]
+    subgraph Financial Engineering & Metrics Engine
+        Scen --> MetricsMod[metrics.py: Deterministic Capital Budgeting & Cash Flow Schedules]
     end
 
     subgraph Optimization Engine
-        Fin --> PuLP[PuLP 0-1 Binary Integer Programming Allocator]
+        MetricsMod --> PuLP[PuLP 0-1 Binary Integer Programming Allocator]
         PuLP --> Naive[Greedy Naive Benchmark Comparison]
         PuLP --> Rej[Rule-Based Rejection Reason Generator]
     end
@@ -82,9 +86,27 @@ graph TD
 
 ---
 
-## 🗄️ 4. Firebase Firestore Schema
+## 🧪 4. Hand-Checked Unit Tests & Testing Page
 
-The database is built on **Google Firebase Firestore** (NoSQL collection-document structure). No SQLite or local flat files are used for persistence.
+VentureLens AI includes hand-checked test cases in [`tests/test_metrics.py`](tests/test_metrics.py) and [`backend/tests/test_metrics.py`](backend/tests/test_metrics.py).
+
+### Hand-Checked Test Cases
+
+| Case ID | Scenario Description | Inputs | Expected Hand-Checked Result | Verified Status |
+| :---: | :--- | :--- | :--- | :---: |
+| **TC-01** | Linear Constant Inflows Payback | Cost: ₹6,00,000, Annual Inflow: ₹1,50,000 for 6 years | Simple Payback: **4.00 years** | **PASS** |
+| **TC-02** | Accounting Profitability & ROI | Cost: ₹10,00,000, Total Profit: ₹2,00,000 | ROI: **20.00%** | **PASS** |
+| **TC-03** | Comprehensive Capital Budgeting | Cost: ₹10,00,000, Rate: 12%, Inflows: 3, 4, 4, 3, 3 Lakh (Contingency: 0) | Payback: **2.75 years**, NPV: **+₹2.32 Lakh**, BCR: **1.232**, ROI: **70%**, IRR: **21.12%**, Decision: **ACCEPT** | **PASS** |
+| **TC-04** | Unrecovered Outlay & Rejection | Cost: ₹10,00,000, Inflows: ₹1,00,000, ₹1,00,000 | Payback: **null**, Decision: **REJECT** | **PASS** |
+| **TC-05** | Capital Contingency Impact | 10% Contingency on ₹10,00,000 Cost | Total Inv: **₹11,00,000** (increases by 100k), NPV: **₹1,32,330** (lowers by exactly 100k) | **PASS** |
+
+### Live Testing Page
+Accessible directly in the application at [`/testing`](https://venture-lens-ai-delta.vercel.app/testing) or via the **"Testing Page (5/5 PASS)"** badge in the header.
+The testing page executes [`GET /api/test-metrics`](https://ffm-cie-2.onrender.com/api/test-metrics) dynamically, displaying a live pass/fail table, execution latency, and step-by-step mathematical proofs.
+
+---
+
+## 🗄️ 5. Firebase Firestore Schema
 
 ```
 firestore-root
@@ -96,6 +118,7 @@ firestore-root
     │   discount_rate: number (e.g. 0.12)
     │   planning_period: number (e.g. 5)
     │   max_risk_level: string ("Low" | "Medium" | "High")
+    │   contingency_pct: number (e.g. 10.0)
     │   created_at: ISO8601 string
     │
     ├── projects/{projectId}
@@ -122,30 +145,21 @@ firestore-root
             allocations: array<AllocationItem>
             ai_recommendation: string
             constraints_summary: object
+            portfolio_summary: object
 ```
 
 ---
 
-## 📊 5. Real Dataset Citation & Model Metrics
+## 📊 6. Real Dataset Citation & Model Metrics
 
-### Dataset Citation
-- **Source**: Kaggle Real Historical Dataset
-- **Exact Slug**: [`manishkc06/startup-success-prediction`](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
-- **Features Used**: `funding_rounds`, `milestones`, `relationships`, `age_last_funding_year`, `avg_participants`, `is_software`, `is_enterprise`, `is_biotech`, `is_ecommerce`
-- **Rows**: 923 historical company venture records
-- **Train/Test Split**: 80% Train (738 samples) / 20% Held-Out Test (185 samples), stratified on binary outcome.
-
-### Held-Out Test Split Performance Metrics
-Computed on 185 unseen test instances and serialized in [`backend/models/metrics.json`](backend/models/metrics.json):
-
-| Model | Target Output | Algorithm | Metric 1 | Metric 2 | Metric 3 | Metric 4 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Revenue Confidence Model** | Cash Flow Multiplier (0.45 – 1.0) | `RandomForestRegressor` | **R²: 0.8678** | **MAE: 0.0437** | **RMSE: 0.0556** | 100 Estimators |
-| **Risk / Distress Model** | Probability of Distress ($1 - P(\text{success})$) | `RandomForestClassifier` | **ROC-AUC: 0.8176** | **Accuracy: 77.84%** | **Precision: 80.15%** | **F1: 0.8367** |
+- **Dataset**: Kaggle Real Historical Dataset [`manishkc06/startup-success-prediction`](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
+- **Samples**: 923 historical company venture records (80% Train: 738, 20% Held-out Test: 185)
+- **Revenue Confidence Regressor**: `RandomForestRegressor` (**R²: 0.8678**, **MAE: 0.0437**, **RMSE: 0.0556**)
+- **Risk / Distress Classifier**: `RandomForestClassifier` (**ROC-AUC: 0.8176**, **Accuracy: 77.84%**, **Precision: 80.15%**, **F1: 0.8367**)
 
 ---
 
-## 🧮 6. Fully Worked Example (Spec Scenario Verification)
+## 🧮 7. Fully Worked Example (Spec Scenario Verification)
 
 ### Company Financial Constraints
 - **Available Investment Budget**: ₹20,00,000 (₹20 Lakh)
@@ -180,74 +194,43 @@ Subject to: 800,000 * x_Solar + 600,000 * x_Recycling + 500,000 * x_Software + 4
 
 ---
 
-## 🚀 7. Installation & Local Verification
+## 🚀 8. Installation & Local Verification
 
 ### Prerequisites
 - Python 3.10+
 - Node.js 18+ and npm
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/Aryan010N/VentureLens_AI.git
-cd VentureLens_AI
-```
-
-### 2. Backend Setup & Test Execution
+### 1. Backend Setup & Test Execution
 ```bash
 # Install Python dependencies
 pip install -r backend/requirements.txt
 
-# Run textbook unit tests (NPV, IRR, Payback, Break-Even, PuLP Allocator, ML)
-python -m pytest backend/tests -v
+# Run all 27 unit tests (including tests/test_metrics.py)
+python -m pytest -v
 
 # Start FastAPI backend
 uvicorn backend.main:app --reload --port 8000
 ```
 Backend API will be accessible at `http://127.0.0.1:8000` (Swagger docs at `/docs`).
 
-### 3. Frontend Setup
+### 2. Frontend Setup
 ```bash
 cd frontend
 npm install
+npm run build
 npm run dev
 ```
-Open `http://localhost:3000` in your browser. Click **"Load Spec Worked Example (₹20L)"** in the top hero banner to run the end-to-end analysis immediately.
+Open `http://localhost:3000` in your browser. Click **"Load Spec Worked Example (₹20L)"** to run the complete end-to-end analysis. Navigate to `/testing` to view the unit test verification table.
 
 ---
 
-## ☁️ 8. Firebase & Cloud Deployment Instructions
+## ☁️ 9. Cloud Deployment & Live Environments
 
-### Firebase Firestore Setup (Manual Steps in Console)
-1. Navigate to [Firebase Console](https://console.firebase.google.com).
-2. Click **Add Project** -> name it `venturelens-ai`.
-3. In the left navigation, click **Build** -> **Firestore Database** -> **Create Database** (Select production mode and choose a nearby region).
-4. Go to **Project Settings** (gear icon) -> **Service Accounts** tab.
-5. Click **Generate new private key**. A JSON file will download.
-6. Copy the following 3 fields from that JSON:
-   - `project_id` -> Set as `FIREBASE_PROJECT_ID`
-   - `client_email` -> Set as `FIREBASE_CLIENT_EMAIL`
-   - `private_key` -> Set as `FIREBASE_PRIVATE_KEY`
-*(Note: If running without cloud credentials, VentureLens AI automatically engages its high-fidelity in-memory Firestore engine for seamless zero-config local testing).*
-
-### Render Backend Deployment
-1. Log in to [Render](https://render.com) -> Click **New Web Service**.
-2. Connect `https://github.com/Aryan010N/VentureLens_AI.git`.
-3. Select **Python** environment.
-   - Build Command: `pip install -r backend/requirements.txt`
-   - Start Command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-4. In **Environment Variables**, paste:
-   - `FIREBASE_PROJECT_ID`
-   - `FIREBASE_CLIENT_EMAIL`
-   - `FIREBASE_PRIVATE_KEY`
-5. Click **Deploy Web Service**.
-
-### Vercel Frontend Deployment
-1. Log in to [Vercel](https://vercel.com) -> Click **Add New Project**.
-2. Import `Aryan010N/VentureLens_AI`.
-3. Set **Root Directory** to `frontend`.
-4. In **Environment Variables**, add:
-   - `NEXT_PUBLIC_API_URL` = Your Render backend URL (e.g. `https://venturelens-backend.onrender.com`).
-5. Click **Deploy**.
+- **Production Frontend (Vercel)**: [https://venture-lens-ai-delta.vercel.app](https://venture-lens-ai-delta.vercel.app)
+- **Live Testing Verification**: [https://venture-lens-ai-delta.vercel.app/testing](https://venture-lens-ai-delta.vercel.app/testing)
+- **Production Backend (Render)**: [https://ffm-cie-2.onrender.com](https://ffm-cie-2.onrender.com)
+- **API Health Check**: [https://ffm-cie-2.onrender.com/api/health](https://ffm-cie-2.onrender.com/api/health)
+- **API Test Suite Execution**: [https://ffm-cie-2.onrender.com/api/test-metrics](https://ffm-cie-2.onrender.com/api/test-metrics)
 
 ---
 

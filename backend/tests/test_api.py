@@ -83,7 +83,7 @@ def test_full_api_workflow():
 
     # Check unselected project rejection reason
     energy_proj = next(a for a in opt_data["allocations"] if "Energy" in a["name"])
-    assert energy_proj["decision"] == "Rejected"
+    assert energy_proj["selected"] is False
     assert energy_proj["rejection_reason"] is not None
 
     # 7. Check History endpoint

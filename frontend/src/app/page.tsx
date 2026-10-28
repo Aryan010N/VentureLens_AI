@@ -145,7 +145,9 @@ export default function Home() {
     setIsOptimizing(true);
     setActionError(null);
     try {
-      const res = await optimizePortfolio(company.company_id);
+      const res = await optimizePortfolio(company.company_id, {
+        contingency_pct: company.contingency_pct,
+      });
       setOptimizationResult(res);
       // Refresh run history from Firestore
       const runs = await fetchRunHistory(company.company_id);
@@ -170,6 +172,7 @@ export default function Home() {
         discount_rate: 0.12,
         planning_period_years: 5,
         max_acceptable_risk: "Medium",
+        contingency_pct: 0,
       };
       
       // 1. Real write to Firestore

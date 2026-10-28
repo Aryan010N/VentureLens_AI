@@ -6,6 +6,7 @@ export interface CompanyData {
   discount_rate: number;
   planning_period_years: number;
   max_acceptable_risk: "Low" | "Medium" | "High";
+  contingency_pct?: number;
   created_at?: string;
 }
 
@@ -66,15 +67,82 @@ export interface ProjectFinancials {
   };
 }
 
+export interface MetricRuleEvaluation {
+  rule: string;
+  description: string;
+  passed: boolean;
+  actual: string;
+  threshold: string;
+}
+
+export interface YearByYearPoint {
+  year: number;
+  inflow: number;
+  discount_factor: number;
+  present_value: number;
+  cumulative_cash_flow: number;
+  discounted_cumulative_cash_flow: number;
+}
+
+export interface WorkedCalculations {
+  payback: string;
+  npv: string;
+  bcr: string;
+  roi: string;
+  contingency: string;
+}
+
 export interface AllocationItem {
   project_id: string;
   name: string;
-  initial_cost: number;
-  npv: number;
-  risk_score: number;
-  risk_category: string;
-  decision: "Selected" | "Rejected";
+  selected: boolean;
   rejection_reason?: string | null;
+
+  // Financial metrics computed by metrics.py
+  initial_cost: number;
+  contingency_pct: number;
+  contingency_amount: number;
+  total_investment: number;
+  total_benefits: number;
+  net_benefit: number;
+  pv_of_benefits: number;
+  discount_factors: number[];
+  npv: number;
+  bcr: number;
+  roi_percent: number;
+  annual_avg_return_percent: number;
+  irr_percent: number | null;
+  simple_payback_years: number | null;
+  discounted_payback_years: number | null;
+  cumulative_cash_flow: number[];
+  discounted_cumulative_cash_flow: number[];
+  break_even_year: number | null;
+  allocated_amount: number;
+  share_of_budget_percent: number;
+  decision: "ACCEPT" | "REJECT" | string;
+  rules: MetricRuleEvaluation[];
+  interpretation: string;
+  worked_calculations?: WorkedCalculations;
+  year_by_year_table: YearByYearPoint[];
+
+  // Metadata
+  risk_category: string;
+  risk_score: number;
+  industry_category: string;
+  lifespan?: number;
+}
+
+export interface PortfolioSummary {
+  total_budget: number;
+  total_allocated: number;
+  unallocated_cash: number;
+  min_cash_reserve: number;
+  loan_facility: number;
+  loan_facility_used: number;
+  portfolio_npv: number;
+  portfolio_roi_percent: number;
+  portfolio_bcr: number;
+  weighted_average_payback: number | null;
 }
 
 export interface OptimizationResult {
@@ -100,7 +168,10 @@ export interface OptimizationResult {
     min_cash_reserve: number;
     max_acceptable_risk: string;
     discount_rate: number;
+    contingency_pct?: number;
+    loan_facility?: number;
   };
+  portfolio_summary?: PortfolioSummary;
 }
 
 export interface MLMetrics {
@@ -124,4 +195,27 @@ export interface MLMetrics {
     roc_auc: number;
   };
   disclaimer: string;
+}
+
+export interface TestCaseResult {
+  id: string;
+  name: string;
+  scenario: string;
+  inputs: Record<string, any>;
+  target_metric: string;
+  expected: string;
+  actual: string;
+  passed: boolean;
+  worked_formula: string;
+}
+
+export interface TestMetricsResponse {
+  suite: string;
+  timestamp: string;
+  total: number;
+  passed: number;
+  failed: number;
+  all_passed: boolean;
+  execution_time_ms: number;
+  test_cases: TestCaseResult[];
 }
