@@ -619,3 +619,4 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
     </div>
   );
 };
+

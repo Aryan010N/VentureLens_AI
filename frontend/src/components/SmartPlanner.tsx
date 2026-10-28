@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { CompanyData, ProjectData } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
+import { AIModelCard } from "@/components/AIModelCard";
 
 interface SmartPlannerProps {
   company: CompanyData;
@@ -27,6 +28,7 @@ interface SmartPlannerProps {
   projects: ProjectData[];
   onAddProject: (p: Partial<ProjectData>) => Promise<void>;
   onRemoveProject: (projectId: string) => Promise<void>;
+  onClearAllProjects?: () => Promise<void>;
   onLoadSpecDemo: () => Promise<void>;
   onUploadCSV: (file: File) => Promise<void>;
   onAnalyze: () => Promise<void>;
@@ -40,6 +42,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   projects,
   onAddProject,
   onRemoveProject,
+  onClearAllProjects,
   onLoadSpecDemo,
   onUploadCSV,
   onAnalyze,
@@ -93,6 +96,19 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     }
     if (durationNum < 1) {
       setFormError("Project duration must be at least 1 year.");
+      return;
+    }
+
+    // Deduplication check: prevent adding multiple candidate projects with identical names
+    const duplicate = projects.find(
+      (p) =>
+        p.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+        p.project_id !== editingId
+    );
+    if (duplicate) {
+      setFormError(
+        `A project named "${name.trim()}" is already registered. Please edit the existing entry or choose a unique name.`
+      );
       return;
     }
 
@@ -543,9 +559,21 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             <h3 className="text-sm font-bold text-slate-800">
               Candidate Projects ({projects.length})
             </h3>
-            <span className="text-xs text-slate-500">
-              Total Requested: {formatINR(projects.reduce((acc, p) => acc + p.initial_cost, 0))}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500">
+                Total Requested: {formatINR(projects.reduce((acc, p) => acc + p.initial_cost, 0))}
+              </span>
+              {projects.length > 0 && onClearAllProjects && (
+                <button
+                  type="button"
+                  onClick={onClearAllProjects}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Clear All</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {projects.length === 0 ? (
@@ -637,6 +665,11 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         </div>
       </section>
 
+      {/* Machine Learning Model and Kaggle Dataset Transparency */}
+      <section>
+        <AIModelCard />
+      </section>
+
       {/* SECTION C: Analyze Projects Prominent Button */}
       <section className="text-center pt-2">
         <button
@@ -665,3 +698,4 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     </div>
   );
 };
+

@@ -271,6 +271,13 @@ def delete_project(company_id: str, project_id: str) -> bool:
     db.collection("companies").document(company_id).collection("projects").document(project_id).delete()
     return True
 
+def clear_projects(company_id: str) -> bool:
+    db = get_firestore_client()
+    docs = db.collection("companies").document(company_id).collection("projects").stream()
+    for d in docs:
+        d.reference.delete()
+    return True
+
 def save_user(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
     db = get_firestore_client()
     if "created_at" not in data or not data["created_at"]:

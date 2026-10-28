@@ -28,6 +28,7 @@ from backend.database.firestore import (
     save_project,
     get_projects,
     delete_project,
+    clear_projects,
     save_run,
     get_runs,
     save_user,
@@ -322,6 +323,14 @@ def remove_company_project(company_id: str, project_id: str):
     """
     delete_project(company_id, project_id)
     return {"success": True, "message": f"Project {project_id} deleted successfully.", "project_id": project_id}
+
+@router.delete("/projects/{company_id}")
+def clear_all_company_projects(company_id: str):
+    """
+    Deletes all registered project records from Firestore under companies/{companyId}/projects.
+    """
+    clear_projects(company_id)
+    return {"success": True, "message": f"All projects for {company_id} cleared successfully."}
 
 @router.post("/upload-projects")
 async def upload_projects(

@@ -91,6 +91,17 @@ export async function deleteProject(companyId: string, projectId: string): Promi
   }
 }
 
+export async function clearAllProjects(companyId: string): Promise<void> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/api/projects/${companyId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Failed to clear projects" }));
+    throw new Error(err.detail || "Failed to clear projects from Firestore");
+  }
+}
+
 export async function uploadProjectsFile(
   companyId: string,
   file: File

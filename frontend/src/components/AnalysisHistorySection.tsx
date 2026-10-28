@@ -135,3 +135,4 @@ export const AnalysisHistorySection: React.FC<AnalysisHistorySectionProps> = ({
     </div>
   );
 };
+

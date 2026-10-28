@@ -22,3 +22,4 @@ class AuthResponse(BaseModel):
     company_id: str
     token: str
     message: Optional[str] = None
+
