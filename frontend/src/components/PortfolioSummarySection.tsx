@@ -446,3 +446,4 @@ export const PortfolioSummarySection: React.FC<PortfolioSummarySectionProps> = (
     </div>
   );
 };
+

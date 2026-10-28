@@ -14,3 +14,4 @@ __all__ = [
     "calculate_payback_years",
     "compute_project_metrics",
 ]
+

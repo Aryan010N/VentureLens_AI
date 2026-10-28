@@ -3,9 +3,12 @@
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20%2B%20Render-teal?style=for-the-badge&logo=vercel)](https://venture-lens-ai-delta.vercel.app)
 [![Testing Page](https://img.shields.io/badge/Testing%20Page-5%2F5%20Hand--Checked%20Pass-emerald?style=for-the-badge&logo=pytest)](https://venture-lens-ai-delta.vercel.app/testing)
+[![Workflow Spec](https://img.shields.io/badge/Workflow%20Spec-0%20to%20Complete%20Guide-blue?style=for-the-badge&logo=markdown)](WORKFLOW_AND_SPECIFICATION.md)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Aryan010N%2FVentureLens__AI-14b8a6?style=for-the-badge&logo=github)](https://github.com/Aryan010N/VentureLens_AI)
 [![Kaggle Dataset](https://img.shields.io/badge/Kaggle-manishkc06%2Fstartup--success--prediction-20beff?style=for-the-badge&logo=kaggle)](https://www.kaggle.com/datasets/manishkc06/startup-success-prediction)
 [![Database](https://img.shields.io/badge/Database-Firebase%20Firestore-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com)
+
+> 📖 **Full System Workflow & Financial Engineering Specification**: Read the complete 0-to-Complete technical reference in [**`WORKFLOW_AND_SPECIFICATION.md`**](WORKFLOW_AND_SPECIFICATION.md).
 
 ---
 

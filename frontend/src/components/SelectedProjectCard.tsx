@@ -566,3 +566,4 @@ export const SelectedProjectCard: React.FC<SelectedProjectCardProps> = ({
     </article>
   );
 };
+

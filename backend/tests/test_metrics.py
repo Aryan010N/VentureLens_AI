@@ -141,3 +141,4 @@ def test_hand_checked_case_5_contingency_impact():
     # NPV lowered by exactly 100,000 (contingency amount)
     assert res_10["npv"] < res_0["npv"]
     assert round(res_0["npv"] - res_10["npv"], 2) == 100000.0
+

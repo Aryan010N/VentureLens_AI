@@ -92,3 +92,4 @@ export const RejectedProjectsTable: React.FC<RejectedProjectsTableProps> = ({
     </div>
   );
 };
+

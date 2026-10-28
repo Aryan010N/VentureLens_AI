@@ -387,3 +387,4 @@ def compute_project_metrics(
         "industry_category": industry_category,
         "lifespan": lifespan,
     }
+
