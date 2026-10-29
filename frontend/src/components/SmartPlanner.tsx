@@ -50,12 +50,14 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   isAnalyzing,
   onSaveCompany,
 }) => {
-  // New Project Form State (Clean Slate)
+  // New Project Form State (Clean Slate & Dynamic Inputs)
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("CleanTech");
   const [cost, setCost] = useState("");
   const [annualInflow, setAnnualInflow] = useState("");
   const [duration, setDuration] = useState("5");
+  const [isYearlyDynamic, setIsYearlyDynamic] = useState(false);
+  const [yearlyInflows, setYearlyInflows] = useState<string[]>(["", "", "", "", ""]);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -74,26 +76,75 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     );
   };
 
+  const handleDurationChange = (newDurStr: string) => {
+    setDuration(newDurStr);
+    const durNum = Math.max(1, Math.min(25, parseInt(newDurStr) || 5));
+    setYearlyInflows((prev) => {
+      const next = [...prev];
+      while (next.length < durNum) {
+        next.push(annualInflow || "");
+      }
+      return next.slice(0, durNum);
+    });
+  };
+
+  const handleUniformInflowChange = (val: string) => {
+    setAnnualInflow(val);
+    const durNum = Math.max(1, parseInt(duration) || 5);
+    setYearlyInflows(Array(durNum).fill(val));
+  };
+
+  const handleYearlyInflowChange = (index: number, val: string) => {
+    setYearlyInflows((prev) => {
+      const next = [...prev];
+      next[index] = val;
+      return next;
+    });
+  };
+
+  const resetForm = () => {
+    setName("");
+    setCost("");
+    setAnnualInflow("");
+    setDuration("5");
+    setIsYearlyDynamic(false);
+    setYearlyInflows(["", "", "", "", ""]);
+    setEditingId(null);
+    setFormError(null);
+  };
+
   const handleAddOrUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
     const costNum = parseFloat(cost);
-    const inflowNum = parseFloat(annualInflow);
-    const durationNum = parseInt(duration) || 5;
+    const durationNum = Math.max(1, parseInt(duration) || 5);
 
     if (!name.trim()) {
       setFormError("Project Name is required.");
       return;
     }
     if (isNaN(costNum) || costNum <= 0) {
-      setFormError("Initial Investment Cost must be greater than ₹0.");
+      setFormError("Initial Investment Cost (Outflow) must be greater than ₹0.");
       return;
     }
-    if (isNaN(inflowNum) || inflowNum <= 0) {
-      setFormError("Expected Annual Cash Inflow must be greater than ₹0.");
-      return;
+
+    let flows: number[] = [];
+    if (isYearlyDynamic) {
+      flows = yearlyInflows.slice(0, durationNum).map((val) => parseFloat(val) || 0);
+      if (flows.length === 0 || flows.every((cf) => cf <= 0)) {
+        setFormError("Please enter positive cash inflows in at least one year.");
+        return;
+      }
+    } else {
+      const inflowNum = parseFloat(annualInflow);
+      if (isNaN(inflowNum) || inflowNum <= 0) {
+        setFormError("Expected Annual Cash Inflow must be greater than ₹0.");
+        return;
+      }
+      flows = Array(durationNum).fill(inflowNum);
     }
+
     if (durationNum < 1) {
       setFormError("Project duration must be at least 1 year.");
       return;
@@ -114,7 +165,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
 
     setIsAdding(true);
     try {
-      const flows = Array(durationNum).fill(inflowNum);
       await onAddProject({
         project_id: editingId || undefined,
         name: name.trim(),
@@ -125,11 +175,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
       });
 
       // Reset Form to clean state
-      setName("");
-      setCost("");
-      setAnnualInflow("");
-      setDuration("5");
-      setEditingId(null);
+      resetForm();
     } catch (err: any) {
       setFormError(err.message || "Failed to save project.");
     } finally {
@@ -142,9 +188,24 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     setName(p.name);
     setIndustry(p.industry_category || "Software");
     setCost(p.initial_cost.toString());
-    const firstInflow = p.cash_flows?.[0] || 0;
-    setAnnualInflow(firstInflow.toString());
-    setDuration((p.duration_years || 5).toString());
+    const dur = p.duration_years || p.cash_flows?.length || 5;
+    setDuration(dur.toString());
+
+    const existingFlows = p.cash_flows || [];
+    const isVarying =
+      existingFlows.length > 1 && existingFlows.some((cf) => cf !== existingFlows[0]);
+
+    if (isVarying) {
+      setIsYearlyDynamic(true);
+      setYearlyInflows(existingFlows.map(String));
+      const avg = existingFlows.reduce((a, b) => a + b, 0) / existingFlows.length;
+      setAnnualInflow(avg.toFixed(0));
+    } else {
+      setIsYearlyDynamic(false);
+      const singleFlow = (existingFlows[0] || 0).toString();
+      setAnnualInflow(singleFlow);
+      setYearlyInflows(Array(dur).fill(singleFlow));
+    }
     window.scrollTo({ top: 320, behavior: "smooth" });
   };
 
@@ -215,7 +276,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               <input
                 type="number"
                 min="0"
-                step="50000"
+                step="any"
                 value={company.total_investment_budget > 0 ? company.total_investment_budget : ""}
                 onChange={(e) =>
                   handleBudgetChange(
@@ -240,7 +301,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             <input
               type="number"
               min="0"
-              step="50000"
+              step="any"
               value={company.min_cash_reserve > 0 ? company.min_cash_reserve : ""}
               onChange={(e) =>
                 handleBudgetChange(
@@ -263,49 +324,50 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             </label>
             <input
               type="number"
-              min="1"
-              max="50"
-              step="0.5"
+              min="0.1"
+              max="100"
+              step="any"
               value={
                 company.discount_rate <= 1.0
-                  ? Number((company.discount_rate * 100).toFixed(1))
+                  ? Number((company.discount_rate * 100).toFixed(2))
                   : company.discount_rate
               }
-              onChange={(e) =>
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
                 handleBudgetChange(
                   "discount_rate",
-                  (parseFloat(e.target.value) || 12) / 100.0
-                )
-              }
+                  isNaN(val) ? 0.12 : val / 100.0
+                );
+              }}
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
             />
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Standard 12.0% Cost of Capital
+              Dynamic cost of capital (e.g. 12%)
             </span>
           </div>
 
           {/* Planning Horizon */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Planning Horizon
+              Planning Horizon (Years)
             </label>
-            <select
+            <input
+              type="number"
+              min="1"
+              max="25"
+              step="1"
               value={company.planning_period_years || 5}
               onChange={(e) =>
                 handleBudgetChange(
                   "planning_period_years",
-                  parseInt(e.target.value) || 5
+                  Math.max(1, parseInt(e.target.value) || 5)
                 )
               }
+              placeholder="e.g. 5"
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
-            >
-              <option value={3}>3 Years</option>
-              <option value={5}>5 Years (Standard)</option>
-              <option value={7}>7 Years</option>
-              <option value={10}>10 Years</option>
-            </select>
+            />
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Forecast evaluation period
+              Horizon: {company.planning_period_years || 5} years
             </span>
           </div>
 
@@ -411,9 +473,10 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {/* Row 1: Project Metadata & Capital Outlay */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Project Name */}
-            <div className="lg:col-span-2">
+            <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 Project Name
               </label>
@@ -444,42 +507,164 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                 <option value="Healthcare">Healthcare</option>
                 <option value="Manufacturing">Manufacturing</option>
                 <option value="FinTech">FinTech</option>
+                <option value="Biotech">Biotech</option>
+                <option value="Services">Services</option>
+                <option value="General">General</option>
               </select>
             </div>
 
-            {/* Initial Investment Cost */}
+            {/* Initial Investment Outlay (Cost) - 100% Dynamic */}
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Initial Cost (₹)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Initial Cost / Outflow (₹)
+                </label>
+                {cost && (
+                  <span className="text-[10px] font-bold text-teal-700">
+                    {formatINR(parseFloat(cost) || 0)}
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 required
-                min="1000"
-                step="10000"
+                min="1"
+                step="any"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
-                placeholder="e.g. 800000"
+                placeholder="e.g. 131000"
                 className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
               />
             </div>
 
-            {/* Expected Annual Inflow */}
+            {/* Duration (Years) - 100% Dynamic */}
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Annual Inflow (₹)
+                Project Duration (Years)
               </label>
               <input
                 type="number"
                 required
-                min="1000"
-                step="10000"
-                value={annualInflow}
-                onChange={(e) => setAnnualInflow(e.target.value)}
-                placeholder="e.g. 300000"
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
+                min="1"
+                max="25"
+                step="1"
+                value={duration}
+                onChange={(e) => handleDurationChange(e.target.value)}
+                placeholder="e.g. 5"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm"
               />
             </div>
+          </div>
+
+          {/* Row 2: Inflow Mode Selection & Dynamic Inflows */}
+          <div className="pt-2 border-t border-slate-200/60 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="block text-xs font-bold text-slate-700">
+                Expected Cash Inflows (₹)
+              </label>
+
+              {/* Mode Toggle Pills */}
+              <div className="inline-flex rounded-xl bg-slate-200/80 p-0.5 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setIsYearlyDynamic(false)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    !isYearlyDynamic
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Uniform Annual Inflow
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsYearlyDynamic(true)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    isYearlyDynamic
+                      ? "bg-white text-teal-800 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Dynamic Multi-Year Inflows
+                </button>
+              </div>
+            </div>
+
+            {!isYearlyDynamic ? (
+              /* Uniform Mode: Single Input with Live Total */
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="any"
+                    value={annualInflow}
+                    onChange={(e) => handleUniformInflowChange(e.target.value)}
+                    placeholder="e.g. 81000"
+                    className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+                  <span>
+                    Generates <strong>{annualInflow ? formatINR(parseFloat(annualInflow) || 0) : "₹0"}</strong> each year for {duration || 5} years.
+                  </span>
+                  <span className="text-teal-700 font-bold">
+                    Total Inflows: {formatINR((parseFloat(annualInflow) || 0) * (parseInt(duration) || 5))}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* Dynamic Multi-Year Breakdown Mode: Grid for Year 1 to Year N */
+              <div className="space-y-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2.5">
+                  {Array.from({ length: Math.max(1, parseInt(duration) || 5) }).map((_, idx) => (
+                    <div key={`dynamic-year-${idx}`} className="p-2.5 rounded-xl bg-white border border-slate-200 shadow-sm space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700">
+                          Year {idx + 1}
+                        </span>
+                        {yearlyInflows[idx] && (
+                          <span className="text-[10px] text-teal-700 font-bold">
+                            {formatINR(parseFloat(yearlyInflows[idx]) || 0)}
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={yearlyInflows[idx] ?? ""}
+                        onChange={(e) => handleYearlyInflowChange(idx, e.target.value)}
+                        placeholder="0"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary calculation for Dynamic Mode */}
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-600 bg-teal-50/60 p-2.5 rounded-xl border border-teal-200/60">
+                  <span>
+                    Dynamic multi-year cash flow profile ({Math.max(1, parseInt(duration) || 5)} operating periods).
+                  </span>
+                  <div className="flex items-center gap-3 font-semibold text-teal-900">
+                    <span>
+                      Avg: {formatINR(
+                        yearlyInflows.slice(0, Math.max(1, parseInt(duration) || 5)).reduce((acc, v) => acc + (parseFloat(v) || 0), 0) /
+                        Math.max(1, parseInt(duration) || 5)
+                      )} / yr
+                    </span>
+                    <span>•</span>
+                    <span className="font-extrabold text-teal-950">
+                      Total: {formatINR(
+                        yearlyInflows.slice(0, Math.max(1, parseInt(duration) || 5)).reduce((acc, v) => acc + (parseFloat(v) || 0), 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/60 mt-1">
@@ -492,12 +677,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               {editingId && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setEditingId(null);
-                    setName("");
-                    setCost("");
-                    setAnnualInflow("");
-                  }}
+                  onClick={resetForm}
                   className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
                 >
                   Cancel
@@ -597,7 +777,25 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                         {formatINR(p.initial_cost)}
                       </td>
                       <td className="py-3 px-4 text-teal-700 font-bold">
-                        {formatINR(p.cash_flows?.[0] || 0)} / yr
+                        {(() => {
+                          const flows = p.cash_flows || [];
+                          if (flows.length === 0) return "₹0 / yr";
+                          const isVarying = flows.length > 1 && flows.some((f) => f !== flows[0]);
+                          if (isVarying) {
+                            const minF = Math.min(...flows);
+                            const maxF = Math.max(...flows);
+                            const avg = flows.reduce((a, b) => a + b, 0) / flows.length;
+                            return (
+                              <div>
+                                <span>{formatINR(avg)} / yr (avg)</span>
+                                <span className="block text-[10px] text-slate-400 font-normal">
+                                  Dynamic: {formatINR(minF)} – {formatINR(maxF)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return `${formatINR(flows[0])} / yr`;
+                        })()}
                       </td>
                       <td className="py-3 px-4 text-slate-600">
                         {p.duration_years || p.cash_flows?.length || 5} Years
