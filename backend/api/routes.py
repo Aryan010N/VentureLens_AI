@@ -251,6 +251,7 @@ def trigger_train_models():
         )
 
 @router.post("/company", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/budget", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
 def create_or_update_company(payload: CompanyCreate):
     """
     Creates or updates company financial parameters in Firestore:
@@ -264,6 +265,7 @@ def create_or_update_company(payload: CompanyCreate):
     return CompanyResponse(**saved)
 
 @router.get("/company/{company_id}", response_model=CompanyResponse)
+@router.get("/budget/{company_id}", response_model=CompanyResponse)
 def fetch_company(company_id: str):
     company = get_company(company_id)
     if not company:
@@ -770,6 +772,7 @@ def optimize_company_portfolio(payload: OptimizationRequest):
 
 
 @router.get("/runs/{company_id}", response_model=List[OptimizationResponse])
+@router.get("/results/{company_id}", response_model=List[OptimizationResponse])
 def get_company_runs_history(company_id: str):
     """
     Fetches the historical record of all optimization runs executed by this company from Firestore.

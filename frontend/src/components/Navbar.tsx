@@ -15,6 +15,8 @@ import {
   Sparkles,
   PieChart,
   UserPlus,
+  Wallet,
+  Layers,
 } from "lucide-react";
 import { UserProfile } from "@/lib/types";
 
@@ -71,7 +73,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   const navLinks = [
-    { href: "/dashboard", label: "Planner", icon: TrendingUp },
+    { href: "/budget", label: "Budget (A)", icon: Wallet },
+    { href: "/projects", label: "Projects (B)", icon: Layers },
     { href: "/results", label: "Results", icon: PieChart },
     { href: "/history", label: "History", icon: History },
     { href: "/testing", label: "Tests & Proofs", icon: FileCheck2, badge: "5/5" },
@@ -106,7 +109,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="flex items-center gap-1 sm:gap-2">
             {navLinks.map((link) => {
               const Icon = link.icon;
-              const isActive = pathname === link.href || (link.href === "/dashboard" && pathname === "/");
+              const isActive =
+                pathname === link.href ||
+                (link.href === "/budget" && (pathname === "/" || pathname === "/dashboard"));
 
               return (
                 <Link

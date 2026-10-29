@@ -19,6 +19,7 @@ import {
   Info,
   Layers,
   TrendingUp,
+  HelpCircle,
 } from "lucide-react";
 import { CompanyData, ProjectData } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -59,6 +60,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   const [isYearlyDynamic, setIsYearlyDynamic] = useState(false);
   const [yearlyInflows, setYearlyInflows] = useState<string[]>(["", "", "", "", ""]);
 
+  const [showHurdleHelp, setShowHurdleHelp] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -317,11 +319,21 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             </span>
           </div>
 
-          {/* Discount Rate */}
+          {/* Discount Rate / Hurdle Rate with Explanation */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Hurdle Rate / WACC (%)
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-bold text-slate-700">
+                Cost of Capital (Hurdle %)
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowHurdleHelp(!showHurdleHelp)}
+                className="text-slate-400 hover:text-teal-700 transition-colors"
+                title="What is Hurdle Rate?"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+              </button>
+            </div>
             <input
               type="number"
               min="0.1"
@@ -342,7 +354,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
             />
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Dynamic cost of capital (e.g. 12%)
+              Discount rate (default 12.0%)
             </span>
           </div>
 
@@ -395,6 +407,42 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             </span>
           </div>
         </div>
+
+        {/* Hurdle Rate / WACC Educational Accordion */}
+        {showHurdleHelp && (
+          <div className="p-4 rounded-xl bg-teal-50/70 border border-teal-200 text-xs text-teal-950 space-y-2 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <span className="font-bold flex items-center gap-1.5 text-teal-900">
+                <Info className="w-4 h-4 text-teal-600" />
+                What is the Cost of Capital / Hurdle Rate (WACC)?
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowHurdleHelp(false)}
+                className="text-teal-700 hover:text-teal-900 text-[11px] font-bold"
+              >
+                Dismiss
+              </button>
+            </div>
+            <p className="leading-relaxed text-teal-900">
+              The <strong>Hurdle Rate</strong> (also known as <strong>Cost of Capital</strong> or <strong>WACC</strong>) is the minimum annual rate of return that your business expects to earn on any capital allocation to justify the risk.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+              <div className="bg-white/80 p-2.5 rounded-lg border border-teal-200">
+                <strong>1. Used for Net Present Value (NPV):</strong>
+                <p className="text-slate-600 font-sans mt-0.5">
+                  Future revenues are discounted into today&apos;s money using: PV = CF / (1 + r)^t.
+                </p>
+              </div>
+              <div className="bg-white/80 p-2.5 rounded-lg border border-teal-200">
+                <strong>2. Decision Hurdle for IRR:</strong>
+                <p className="text-slate-600 font-sans mt-0.5">
+                  If an initiative&apos;s Internal Rate of Return (IRR) is lower than your hurdle rate, it destroys shareholder value.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sleek Live Capital Allocation Ribbon */}
         <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs">

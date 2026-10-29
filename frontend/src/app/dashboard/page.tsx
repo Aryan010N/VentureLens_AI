@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Wallet, Layers, PieChart } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { SmartPlanner } from "@/components/SmartPlanner";
 import {
@@ -298,7 +300,39 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Step-by-Step Dedicated Endpoints Banner */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-500 flex-wrap">
+            <Link
+              href="/budget"
+              className="px-3 py-1.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 flex items-center gap-1.5 shadow-sm hover:bg-teal-100 transition-colors"
+            >
+              <Wallet className="w-3.5 h-3.5 text-teal-600" />
+              <span>Part A: Budget Endpoint (/budget)</span>
+            </Link>
+            <span>→</span>
+            <Link
+              href="/projects"
+              className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 flex items-center gap-1.5 shadow-sm hover:bg-slate-100 transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-600" />
+              <span>Part B: Projects Endpoint (/projects)</span>
+            </Link>
+            <span>→</span>
+            <Link
+              href="/results"
+              className="px-3 py-1.5 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 flex items-center gap-1.5 shadow-sm hover:bg-slate-100 transition-colors"
+            >
+              <PieChart className="w-3.5 h-3.5 text-slate-600" />
+              <span>Results Endpoint (/results)</span>
+            </Link>
+          </div>
+          <span className="text-xs text-slate-400 font-medium hidden md:inline">
+            Each step has its own dedicated endpoint
+          </span>
+        </div>
+
         <SmartPlanner
           company={company}
           setCompany={setCompany}
