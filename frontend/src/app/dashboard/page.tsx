@@ -43,25 +43,30 @@ export default function DashboardPage() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
 
-  // Initialize User
+  // Initialize User with AuthGuard
   useEffect(() => {
-    const saved = localStorage.getItem("venturelens_user");
-    if (saved) {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("venturelens_user");
+      if (!saved) {
+        // Enforce Authentication Guard: redirect logged-out users to login
+        router.push("/login");
+        return;
+      }
       try {
         const u = JSON.parse(saved);
+        if (!u || !u.user_id) {
+          localStorage.removeItem("venturelens_user");
+          router.push("/login");
+          return;
+        }
         setUser(u);
         setCompany((prev) => ({ ...prev, company_id: u.company_id || DEFAULT_COMPANY_ID }));
-      } catch (e) {}
-    } else {
-      const demoUser: UserProfile = {
-        user_id: "user_demo_01",
-        email: "demo@venturelens.ai",
-        name: "Venture Investor",
-        company_id: DEFAULT_COMPANY_ID,
-      };
-      setUser(demoUser);
+      } catch (e) {
+        localStorage.removeItem("venturelens_user");
+        router.push("/login");
+      }
     }
-  }, []);
+  }, [router]);
 
   const loadData = useCallback(async () => {
     const compId = user?.company_id || DEFAULT_COMPANY_ID;
@@ -260,9 +265,16 @@ export default function DashboardPage() {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("venturelens_user");
+    localStorage.removeItem("venturelens_latest_result");
+    setUser(null);
+    router.push("/login");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      <Navbar user={user} />
+      <Navbar user={user} onLogout={handleLogout} />
 
       {errorBanner && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">

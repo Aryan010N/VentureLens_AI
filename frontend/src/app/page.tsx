@@ -23,13 +23,18 @@ import { AIModelCard } from "@/components/AIModelCard";
 export default function LandingPage() {
   const router = useRouter();
 
-  // If user already has a session or wants immediate planner, redirect to /dashboard
+  // If user is already authenticated, redirect to /dashboard
   useEffect(() => {
-    const hasVisited = sessionStorage.getItem("venturelens_visited");
-    if (hasVisited) {
-      router.push("/dashboard");
-    } else {
-      sessionStorage.setItem("venturelens_visited", "true");
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("venturelens_user");
+      if (saved) {
+        try {
+          const u = JSON.parse(saved);
+          if (u && u.user_id) {
+            router.push("/dashboard");
+          }
+        } catch (e) {}
+      }
     }
   }, [router]);
 

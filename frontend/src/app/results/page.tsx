@@ -20,54 +20,76 @@ const DEFAULT_COMPANY_ID = "venture_company_01";
 
 export default function ResultsPage() {
   const router = useRouter();
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [result, setResult] = useState<OptimizationResult | null>(null);
   const [discountRate, setDiscountRate] = useState<number>(0.12);
   const [selectedProject, setSelectedProject] = useState<AllocationItem | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Try reading latest result from localStorage
-    const saved = localStorage.getItem("venturelens_latest_result");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setResult(parsed);
-        if (parsed.constraints_summary?.discount_rate) {
-          setDiscountRate(parsed.constraints_summary.discount_rate);
-        }
-        setLoading(false);
+    if (typeof window !== "undefined") {
+      const userStr = localStorage.getItem("venturelens_user");
+      if (!userStr) {
+        router.push("/login");
         return;
-      } catch (e) {}
-    }
-
-    // 2. Fallback: fetch latest run from Firestore
-    let compId = DEFAULT_COMPANY_ID;
-    const userStr = localStorage.getItem("venturelens_user");
-    if (userStr) {
+      }
+      let compId = DEFAULT_COMPANY_ID;
       try {
         const u = JSON.parse(userStr);
-        if (u.company_id) compId = u.company_id;
-      } catch (e) {}
-    }
-
-    fetchCompany(compId)
-      .then((c) => {
-        if (c?.discount_rate) setDiscountRate(c.discount_rate);
-      })
-      .catch(() => {});
-
-    fetchRunHistory(compId)
-      .then((runs) => {
-        if (runs && runs.length > 0) {
-          setResult(runs[0]);
+        if (!u || !u.user_id) {
+          localStorage.removeItem("venturelens_user");
+          router.push("/login");
+          return;
         }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+        setUser(u);
+        if (u.company_id) compId = u.company_id;
+      } catch (e) {
+        localStorage.removeItem("venturelens_user");
+        router.push("/login");
+        return;
+      }
+
+      // 1. Try reading latest result from localStorage
+      const saved = localStorage.getItem("venturelens_latest_result");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setResult(parsed);
+          if (parsed.constraints_summary?.discount_rate) {
+            setDiscountRate(parsed.constraints_summary.discount_rate);
+          }
+          setLoading(false);
+          return;
+        } catch (e) {}
+      }
+
+      // 2. Fallback: fetch latest run from Firestore
+      fetchCompany(compId)
+        .then((c) => {
+          if (c?.discount_rate) setDiscountRate(c.discount_rate);
+        })
+        .catch(() => {});
+
+      fetchRunHistory(compId)
+        .then((runs) => {
+          if (runs && runs.length > 0) {
+            setResult(runs[0]);
+          }
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("venturelens_user");
+    localStorage.removeItem("venturelens_latest_result");
+    setUser(null);
+    router.push("/login");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-      <Navbar />
+      <Navbar user={user} onLogout={handleLogout} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="flex items-center justify-between pb-3 border-b border-slate-200">

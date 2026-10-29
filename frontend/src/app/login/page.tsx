@@ -24,6 +24,20 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("venturelens_user");
+      if (saved) {
+        try {
+          const u = JSON.parse(saved);
+          if (u && u.user_id) {
+            router.push("/dashboard");
+          }
+        } catch (e) {}
+      }
+    }
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);

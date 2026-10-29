@@ -13,6 +13,7 @@ const DEFAULT_COMPANY_ID = "venture_company_01";
 export default function AccountPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState<CompanyData>({
     company_id: DEFAULT_COMPANY_ID,
     total_investment_budget: 2000000,
@@ -27,34 +28,48 @@ export default function AccountPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("venturelens_user");
-      if (saved) {
-        try {
-          const u = JSON.parse(saved);
-          setUser(u);
-          if (u.company_id) {
-            setCompany((prev) => ({ ...prev, company_id: u.company_id }));
-            fetchCompany(u.company_id).then((c) => {
-              if (c) setCompany(c);
-            }).catch(() => {});
-          }
-        } catch (e) {}
-      } else {
-        const demoUser: UserProfile = {
-          user_id: "user_demo_01",
-          email: "demo@venturelens.ai",
-          name: "Venture Investor",
-          company_id: DEFAULT_COMPANY_ID,
-        };
-        setUser(demoUser);
+      if (!saved) {
+        // Enforce Authentication Guard: redirect logged-out users to login
+        router.push("/login");
+        return;
+      }
+      try {
+        const u = JSON.parse(saved);
+        if (!u || !u.user_id) {
+          localStorage.removeItem("venturelens_user");
+          router.push("/login");
+          return;
+        }
+        setUser(u);
+        const compId = u.company_id || DEFAULT_COMPANY_ID;
+        setCompany((prev) => ({ ...prev, company_id: compId }));
+        fetchCompany(compId)
+          .then((c) => {
+            if (c) setCompany(c);
+          })
+          .catch(() => {})
+          .finally(() => setLoading(false));
+      } catch (e) {
+        localStorage.removeItem("venturelens_user");
+        router.push("/login");
       }
     }
-  }, []);
+  }, [router]);
 
   const handleLogout = () => {
     localStorage.removeItem("venturelens_user");
+    localStorage.removeItem("venturelens_latest_result");
     setUser(null);
     router.push("/login");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-slate-300 border-t-teal-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -83,4 +98,3 @@ export default function AccountPage() {
     </div>
   );
 }
-

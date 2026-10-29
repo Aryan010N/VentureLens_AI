@@ -61,13 +61,13 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [propHealthy]);
 
   const handleLogout = () => {
+    localStorage.removeItem("venturelens_user");
+    localStorage.removeItem("venturelens_latest_result");
+    setUser(null);
     if (propLogout) {
       propLogout();
-    } else {
-      localStorage.removeItem("venturelens_user");
-      setUser(null);
-      router.push("/login");
     }
+    router.push("/login");
   };
 
   const navLinks = [
