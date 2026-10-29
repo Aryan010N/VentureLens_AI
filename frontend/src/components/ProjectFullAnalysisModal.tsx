@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   X,
   TrendingUp,
@@ -30,37 +30,55 @@ import {
   Tooltip,
   CartesianGrid,
   ReferenceLine,
-  ReferenceDot,
 } from "recharts";
-import { AllocationItem } from "@/lib/types";
+import { AllocationItem, YearByYearPoint } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
 
 interface ProjectFullAnalysisModalProps {
   project: AllocationItem | null;
   onClose: () => void;
-  discountRate: number;
+  discountRate?: number;
 }
 
 export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> = ({
   project,
   onClose,
-  discountRate,
+  discountRate = 0.12,
 }) => {
   const [showFormulas, setShowFormulas] = useState(false);
-  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // Delay chart mounting slightly to ensure modal DOM container has calculated bounding dimensions
+    const timer = setTimeout(() => setIsMounted(true), 60);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (!project) return null;
 
-  const hurdlePct = (
-    discountRate <= 1.0 ? discountRate * 100 : discountRate
-  ).toFixed(1);
+  const dRate = typeof discountRate === "number" && !isNaN(discountRate) ? discountRate : 0.12;
+  const hurdlePct = (dRate <= 1.0 ? dRate * 100 : dRate).toFixed(1);
+  const initialOutlay = Number(project.total_investment || project.initial_cost || 0);
 
-  // Prepare zero-crossing chart data
+  // Prepare table rows ensuring Year 0 outlay is displayed
+  const displayTableRows = useMemo(() => {
+    const rawTable = project.year_by_year_table || [];
+    const hasYear0 = rawTable.some((r) => r.year === 0);
+    if (hasYear0) return rawTable;
+
+    const year0Row: YearByYearPoint = {
+      year: 0,
+      inflow: -initialOutlay,
+      discount_factor: 1.0,
+      present_value: -initialOutlay,
+      cumulative_cash_flow: -initialOutlay,
+      discounted_cumulative_cash_flow: -initialOutlay,
+    };
+    return [year0Row, ...rawTable];
+  }, [project.year_by_year_table, initialOutlay]);
+
+  // Prepare zero-crossing chart data starting at Year 0 (-initialOutlay)
   const chartData = useMemo(() => {
-    if (!project.year_by_year_table || project.year_by_year_table.length === 0) {
-      return [];
-    }
-
     const data: Array<{
       name: string;
       yearNum: number;
@@ -69,10 +87,20 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
       isPaybackPoint?: boolean;
     }> = [];
 
+    // Prepend Year 0 initial investment outlay
+    data.push({
+      name: "Year 0",
+      yearNum: 0,
+      cumulative_cash: -initialOutlay,
+      discounted_cumulative: -initialOutlay,
+    });
+
     const pb = project.simple_payback_years;
     let insertedPb = false;
 
-    project.year_by_year_table.forEach((pt) => {
+    (project.year_by_year_table || []).forEach((pt) => {
+      if (pt.year === 0) return;
+
       if (
         !insertedPb &&
         pb !== null &&
@@ -91,7 +119,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
       }
 
       data.push({
-        name: pt.year === 0 ? "Year 0" : `Yr ${pt.year}`,
+        name: `Yr ${pt.year}`,
         yearNum: pt.year,
         cumulative_cash: pt.cumulative_cash_flow,
         discounted_cumulative: pt.discounted_cumulative_cash_flow,
@@ -99,19 +127,16 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
     });
 
     return data;
-  }, [project.year_by_year_table, project.simple_payback_years]);
-
-  // Payback point for ReferenceDot
-  const paybackPoint = chartData.find((d) => d.isPaybackPoint);
+  }, [project.year_by_year_table, project.simple_payback_years, initialOutlay]);
 
   // 10 Capital Budgeting Metric Cards
   const metricCards = [
     {
       id: "total_benefits",
       title: "1. Total Benefits",
-      value: formatINR(project.total_benefits),
+      value: formatINR(project.total_benefits ?? 0),
       formula: "Total Benefits = Σ (Annual Cash Inflows)",
-      example: `Sum of expected gross cash inflows = ${formatINR(project.total_benefits)}`,
+      example: `Sum of expected gross cash inflows = ${formatINR(project.total_benefits ?? 0)}`,
       meaning: "Total undiscounted cash inflows generated over the project lifespan.",
       badge: "Inflows",
       color: "text-slate-900",
@@ -119,49 +144,49 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
     {
       id: "net_benefit",
       title: "2. Net Benefit",
-      value: formatINR(project.net_benefit),
+      value: formatINR(project.net_benefit ?? 0),
       formula: "Net Benefit = Total Benefits − Total Investment",
-      example: `${formatINR(project.total_benefits)} − ${formatINR(project.total_investment)} = ${formatINR(project.net_benefit)}`,
+      example: `${formatINR(project.total_benefits ?? 0)} − ${formatINR(project.total_investment ?? 0)} = ${formatINR(project.net_benefit ?? 0)}`,
       meaning: "Total economic profit after recovering the initial investment and contingency.",
-      badge: project.net_benefit >= 0 ? "+ Profit" : "- Loss",
-      color: project.net_benefit >= 0 ? "text-emerald-700" : "text-rose-700",
+      badge: (project.net_benefit ?? 0) >= 0 ? "+ Profit" : "- Loss",
+      color: (project.net_benefit ?? 0) >= 0 ? "text-emerald-700" : "text-rose-700",
     },
     {
       id: "npv",
       title: "3. Net Present Value (NPV)",
-      value: formatINR(project.npv),
+      value: formatINR(project.npv ?? 0),
       formula: "NPV = −I₀ + Σ [CFₜ / (1+r)ᵗ]",
-      example: `Discounted at ${hurdlePct}% hurdle rate: ${formatINR(project.npv)}`,
+      example: `Discounted at ${hurdlePct}% hurdle rate: ${formatINR(project.npv ?? 0)}`,
       meaning: "Net economic value added in today's money (>0 creates wealth).",
-      badge: project.npv > 0 ? "Accept (>0)" : "Reject (≤0)",
-      color: project.npv > 0 ? "text-emerald-700" : "text-rose-700",
+      badge: (project.npv ?? 0) > 0 ? "Accept (>0)" : "Reject (≤0)",
+      color: (project.npv ?? 0) > 0 ? "text-emerald-700" : "text-rose-700",
     },
     {
       id: "bcr",
       title: "4. Benefit-Cost Ratio (BCR)",
       value: project.bcr !== null && project.bcr !== undefined ? project.bcr.toFixed(3) : "N/A",
       formula: "BCR = Present Value of Benefits / Total Investment",
-      example: `${formatINR(project.pv_of_benefits)} / ${formatINR(project.total_investment)} = ${project.bcr?.toFixed(3)}`,
+      example: `${formatINR(project.pv_of_benefits ?? 0)} / ${formatINR(project.total_investment ?? 0)} = ${project.bcr != null ? project.bcr.toFixed(3) : "N/A"}`,
       meaning: "Discounted value created per ₹1 of capital invested (>1.0 indicates viable capital efficiency).",
-      badge: project.bcr > 1.0 ? "> 1.0 Viable" : "≤ 1.0",
-      color: project.bcr > 1.0 ? "text-teal-700" : "text-amber-700",
+      badge: (project.bcr ?? 0) > 1.0 ? "> 1.0 Viable" : "≤ 1.0",
+      color: (project.bcr ?? 0) > 1.0 ? "text-teal-700" : "text-amber-700",
     },
     {
       id: "roi",
       title: "5. Return on Investment (ROI)",
-      value: `${project.roi_percent?.toFixed(1)}%`,
+      value: `${(project.roi_percent ?? 0).toFixed(1)}%`,
       formula: "ROI (%) = [(Total Benefits − Total Investment) / Total Investment] × 100",
-      example: `[(${formatINR(project.total_benefits)} − ${formatINR(project.total_investment)}) / ${formatINR(project.total_investment)}] × 100 = ${project.roi_percent?.toFixed(1)}%`,
+      example: `[(${formatINR(project.total_benefits ?? 0)} − ${formatINR(project.total_investment ?? 0)}) / ${formatINR(project.total_investment ?? 0)}] × 100 = ${(project.roi_percent ?? 0).toFixed(1)}%`,
       meaning: "Cumulative percentage return generated on invested funds.",
       badge: "ROI",
-      color: project.roi_percent >= 0 ? "text-teal-700" : "text-rose-700",
+      color: (project.roi_percent ?? 0) >= 0 ? "text-teal-700" : "text-rose-700",
     },
     {
       id: "annual_roi",
       title: "6. Average Annual ROI",
-      value: `${project.annual_avg_return_percent?.toFixed(1)}%`,
+      value: `${(project.annual_avg_return_percent ?? 0).toFixed(1)}%`,
       formula: "Average Annual ROI = Total ROI (%) / Project Lifespan",
-      example: `${project.roi_percent?.toFixed(1)}% / ${project.lifespan || 5} yrs = ${project.annual_avg_return_percent?.toFixed(1)}% per yr`,
+      example: `${(project.roi_percent ?? 0).toFixed(1)}% / ${project.lifespan || 5} yrs = ${(project.annual_avg_return_percent ?? 0).toFixed(1)}% per yr`,
       meaning: "Annualized simple accounting return across the planning horizon.",
       badge: "Per Year",
       color: "text-slate-800",
@@ -171,10 +196,10 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
       title: "7. Internal Rate of Return (IRR)",
       value: project.irr_percent !== null && project.irr_percent !== undefined ? `${project.irr_percent.toFixed(1)}%` : "N/A",
       formula: "IRR = discount rate where NPV(r) = 0",
-      example: `IRR = ${project.irr_percent?.toFixed(1)}% vs Hurdle Rate = ${hurdlePct}%`,
-      meaning: `Breakeven return rate. ${project.irr_percent && project.irr_percent > parseFloat(hurdlePct) ? "Exceeds hurdle rate, adding shareholder value." : "Below hurdle rate."}`,
-      badge: project.irr_percent && project.irr_percent > parseFloat(hurdlePct) ? "Beats Hurdle" : "Below Hurdle",
-      color: project.irr_percent && project.irr_percent > parseFloat(hurdlePct) ? "text-emerald-700" : "text-amber-700",
+      example: `IRR = ${project.irr_percent != null ? `${project.irr_percent.toFixed(1)}%` : "N/A"} vs Hurdle = ${hurdlePct}%`,
+      meaning: `Breakeven return rate. ${project.irr_percent != null && project.irr_percent > parseFloat(hurdlePct) ? "Exceeds hurdle rate, adding shareholder value." : "Meets baseline return expectations."}`,
+      badge: project.irr_percent != null && project.irr_percent > parseFloat(hurdlePct) ? "Beats Hurdle" : "Evaluation",
+      color: project.irr_percent != null && project.irr_percent > parseFloat(hurdlePct) ? "text-emerald-700" : "text-slate-700",
     },
     {
       id: "simple_payback",
@@ -253,13 +278,16 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 text-xs">
               <div className="p-3 bg-white rounded-xl border border-slate-200">
                 <span className="text-[11px] text-slate-500 block">Industry Sector</span>
-                <span className="font-bold text-slate-900 text-sm">{project.industry_category}</span>
+                <span className="font-bold text-slate-900 text-sm">{project.industry_category || "General"}</span>
               </div>
 
               <div className="p-3 bg-white rounded-xl border border-slate-200">
-                <span className="text-[11px] text-slate-500 block">Risk Profile</span>
+                <span className="text-[11px] text-slate-500 block">AI Risk Assessment</span>
                 <span className="font-bold text-slate-900 text-sm">
-                  {project.risk_category} (Score: {(project.risk_score * 100).toFixed(0)}%)
+                  {project.risk_category || "Medium"}{" "}
+                  <span className="text-xs text-slate-500 font-normal">
+                    (Score: {project.risk_score != null ? ((project.risk_score * 100).toFixed(0)) : "50"}%)
+                  </span>
                 </span>
               </div>
 
@@ -278,7 +306,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
               <div className="p-3 bg-white rounded-xl border border-slate-200">
                 <span className="text-[11px] text-slate-500 block">Total Investment</span>
                 <span className="font-black text-slate-900 text-sm">
-                  {formatINR(project.total_investment)}
+                  {formatINR(project.total_investment || project.initial_cost)}
                 </span>
               </div>
             </div>
@@ -288,7 +316,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
               <span>•</span>
               <span><strong>Contingency Reserve:</strong> {project.contingency_pct || 0}% ({formatINR(project.contingency_amount || 0)})</span>
               <span>•</span>
-              <span><strong>Budget Share:</strong> {project.share_of_budget_percent?.toFixed(1)}%</span>
+              <span><strong>Budget Share:</strong> {(project.share_of_budget_percent ?? 0).toFixed(1)}%</span>
             </div>
           </section>
 
@@ -303,7 +331,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
               {metricCards.map((m) => (
                 <div
                   key={m.id}
-                  className="card-clean rounded-xl p-3.5 flex flex-col justify-between hover:border-teal-400 transition-all"
+                  className="card-clean rounded-xl p-3.5 flex flex-col justify-between hover:border-teal-400 transition-all bg-white"
                 >
                   <div>
                     <div className="flex items-center justify-between text-[11px] mb-1">
@@ -329,7 +357,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
             </div>
           </section>
 
-          {/* C. Cash Flow Chart */}
+          {/* C. Cash Flow Chart (Zero-Crossing) */}
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
@@ -342,86 +370,95 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
             </div>
 
             <div className="card-clean rounded-2xl p-4 bg-slate-50/50">
-              <div className="h-64 sm:h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 15, right: 25, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="#64748B"
-                      fontSize={11}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      stroke="#64748B"
-                      fontSize={11}
-                      tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
-                      tickLine={false}
-                    />
-                    <Tooltip
-                      formatter={(val: any) => [formatINR(Number(val)), "Cash Flow"]}
-                      contentStyle={{
-                        backgroundColor: "#0F172A",
-                        borderColor: "#334155",
-                        borderRadius: "12px",
-                        color: "#F8FAFC",
-                        fontSize: "12px",
-                      }}
-                    />
-                    {/* Zero baseline */}
-                    <ReferenceLine
-                      y={0}
-                      stroke="#0F172A"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: "Break-Even Baseline (₹0)",
-                        position: "insideBottomRight",
-                        fill: "#475569",
-                        fontSize: 10,
-                      }}
-                    />
-                    {/* Payback point marked where line crosses zero */}
-                    {paybackPoint && (
-                      <ReferenceDot
-                        x={paybackPoint.name}
-                        y={0}
-                        r={7}
-                        fill="#0D9488"
-                        stroke="#FFFFFF"
-                        strokeWidth={2}
-                        label={{
-                          value: `Payback (${project.simple_payback_years?.toFixed(2)}y)`,
-                          position: "top",
-                          fill: "#0D9488",
-                          fontSize: 11,
-                          fontWeight: "bold",
+              <div className="min-h-[280px] h-72 w-full">
+                {isMounted ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartData}
+                      margin={{ top: 20, right: 30, left: 10, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                      <XAxis
+                        dataKey="name"
+                        stroke="#64748B"
+                        fontSize={11}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        stroke="#64748B"
+                        fontSize={11}
+                        tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
+                        tickLine={false}
+                      />
+                      <Tooltip
+                        formatter={(val: any) => [formatINR(Number(val)), "Cash Flow"]}
+                        contentStyle={{
+                          backgroundColor: "#0F172A",
+                          borderColor: "#334155",
+                          borderRadius: "12px",
+                          color: "#F8FAFC",
+                          fontSize: "12px",
                         }}
                       />
-                    )}
-                    <Line
-                      type="monotone"
-                      dataKey="cumulative_cash"
-                      name="Cumulative Cash Flow"
-                      stroke="#0D9488"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: "#0D9488" }}
-                      activeDot={{ r: 6 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="discounted_cumulative"
-                      name="Discounted Cumulative"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      strokeDasharray="3 3"
-                      dot={{ r: 3, fill: "#3B82F6" }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                      {/* Zero baseline */}
+                      <ReferenceLine
+                        y={0}
+                        stroke="#0F172A"
+                        strokeWidth={2}
+                        strokeDasharray="4 4"
+                        label={{
+                          value: "Break-Even Baseline (₹0)",
+                          position: "insideBottomRight",
+                          fill: "#475569",
+                          fontSize: 10,
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="cumulative_cash"
+                        name="Cumulative Cash Flow"
+                        stroke="#0D9488"
+                        strokeWidth={3}
+                        dot={(props: any) => {
+                          const { cx, cy, payload, index } = props;
+                          if (!cx || !cy || isNaN(cx) || isNaN(cy)) return <g key={`empty-${index}`} />;
+                          if (payload?.isPaybackPoint) {
+                            return (
+                              <g key={`payback-dot-${cx}-${cy}`}>
+                                <circle cx={cx} cy={cy} r={7} fill="#0D9488" stroke="#FFFFFF" strokeWidth={2} />
+                                <text
+                                  x={cx}
+                                  y={cy - 12}
+                                  textAnchor="middle"
+                                  fill="#0D9488"
+                                  fontSize={11}
+                                  fontWeight="bold"
+                                >
+                                  Payback ({project.simple_payback_years?.toFixed(2)}y)
+                                </text>
+                              </g>
+                            );
+                          }
+                          return <circle key={`dot-${cx}-${cy}`} cx={cx} cy={cy} r={4} fill="#0D9488" />;
+                        }}
+                        activeDot={{ r: 6 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="discounted_cumulative"
+                        name="Discounted Cumulative"
+                        stroke="#3B82F6"
+                        strokeWidth={2}
+                        strokeDasharray="3 3"
+                        dot={{ r: 3, fill: "#3B82F6" }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center text-xs text-slate-400">
+                    Initializing interactive chart...
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-6 mt-3 text-xs">
@@ -461,11 +498,11 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white font-mono">
-                  {(project.year_by_year_table || []).map((row) => (
+                  {displayTableRows.map((row) => (
                     <tr
                       key={row.year}
                       className={`hover:bg-slate-50 transition-colors ${
-                        row.year === 0 ? "bg-slate-50/60 font-semibold" : ""
+                        row.year === 0 ? "bg-slate-50/70 font-semibold" : ""
                       }`}
                     >
                       <td className="py-2.5 px-4 font-sans font-bold text-slate-900">
@@ -479,14 +516,14 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                         {formatINR(row.inflow)}
                       </td>
                       <td className="py-2.5 px-4 text-slate-600">
-                        {row.discount_factor?.toFixed(4)}
+                        {row.discount_factor != null ? row.discount_factor.toFixed(4) : "1.0000"}
                       </td>
                       <td className="py-2.5 px-4 text-teal-800 font-bold">
                         {row.present_value !== 0 ? formatINR(row.present_value) : "—"}
                       </td>
                       <td
                         className={`py-2.5 px-4 font-bold ${
-                          row.cumulative_cash_flow >= 0
+                          (row.cumulative_cash_flow ?? 0) >= 0
                             ? "text-emerald-700"
                             : "text-rose-600"
                         }`}
@@ -495,7 +532,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                       </td>
                       <td
                         className={`py-2.5 px-4 font-bold ${
-                          row.discounted_cumulative_cash_flow >= 0
+                          (row.discounted_cumulative_cash_flow ?? 0) >= 0
                             ? "text-emerald-700"
                             : "text-rose-600"
                         }`}
@@ -524,9 +561,9 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                 )} from available funds. It delivers an estimated NPV of ${formatINR(
                   project.npv
                 )} with an IRR of ${
-                  project.irr_percent ? `${project.irr_percent.toFixed(1)}%` : "N/A"
+                  project.irr_percent != null ? `${project.irr_percent.toFixed(1)}%` : "N/A"
                 } against a ${hurdlePct}% hurdle rate, fully recovering capital in ${
-                  project.simple_payback_years
+                  project.simple_payback_years != null
                     ? `${project.simple_payback_years.toFixed(2)} years`
                     : "an extended period"
                 }. It strongly adds value to the corporate portfolio.`}
@@ -574,7 +611,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                   </h5>
                   <p className="font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-teal-800">
                     {project.worked_calculations?.npv ||
-                      `NPV = PV of Inflows (${formatINR(project.pv_of_benefits)}) − Total Investment (${formatINR(project.total_investment)}) = ${formatINR(project.npv)}`}
+                      `NPV = PV of Inflows (${formatINR(project.pv_of_benefits ?? 0)}) − Total Investment (${formatINR(project.total_investment ?? 0)}) = ${formatINR(project.npv ?? 0)}`}
                   </p>
                 </div>
 
@@ -584,7 +621,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                   </h5>
                   <p className="font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-teal-800">
                     {project.worked_calculations?.bcr ||
-                      `BCR = ${formatINR(project.pv_of_benefits)} / ${formatINR(project.total_investment)} = ${project.bcr?.toFixed(3)}`}
+                      `BCR = ${formatINR(project.pv_of_benefits ?? 0)} / ${formatINR(project.total_investment ?? 0)} = ${project.bcr != null ? project.bcr.toFixed(3) : "1.000"}`}
                   </p>
                 </div>
 
@@ -594,7 +631,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
                   </h5>
                   <p className="font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-teal-800">
                     {project.worked_calculations?.roi ||
-                      `ROI % = (Net Benefit / Total Investment) × 100 = (${formatINR(project.net_benefit)} / ${formatINR(project.total_investment)}) × 100 = ${project.roi_percent?.toFixed(1)}%`}
+                      `ROI % = (Net Benefit / Total Investment) × 100 = (${formatINR(project.net_benefit ?? 0)} / ${formatINR(project.total_investment ?? 0)}) × 100 = ${(project.roi_percent ?? 0).toFixed(1)}%`}
                   </p>
                 </div>
               </div>
@@ -619,4 +656,3 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
     </div>
   );
 };
-

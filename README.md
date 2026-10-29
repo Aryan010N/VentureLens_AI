@@ -109,8 +109,9 @@ The testing page executes [`GET /api/test-metrics`](https://ffm-cie-2.onrender.c
 
 ---
 
-## 🗄️ 5. Firebase Firestore Schema
+## 🗄️ 5. Firebase Firestore Schema & Security Rules
 
+### A. Firestore Collections
 ```
 firestore-root
 │
@@ -135,7 +136,8 @@ firestore-root
     │       name: string (e.g. "Solar installation")
     │       initial_cost: number (e.g. 800000)
     │       cash_flows: array<number> [300000, 300000, 300000, 300000, 300000]
-    │       risk_category: string ("Low" | "Medium" | "High")
+    │       risk_score: number (e.g. 0.19, evaluated by Machine Learning)
+    │       risk_category: string ("Low" | "Medium" | "High", AI-predicted)
     │       industry_category: string ("CleanTech", "Software", etc.)
     │       duration: number (e.g. 5)
     │       created_at: ISO8601 string
@@ -157,6 +159,29 @@ firestore-root
             constraints_summary: object
             portfolio_summary: object
 ```
+
+### B. Firestore Security Rules
+Paste these rules in Firebase Console under **Firestore Database $\rightarrow$ Rules**:
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    match /companies/{companyId}/{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+```
+
+### C. Firebase Authentication Setup
+To enable native Email/Password user management in the Firebase Console:
+1. Navigate to [Firebase Console](https://console.firebase.google.com/project/fm-cie-2/authentication).
+2. Go to **Authentication** $\rightarrow$ **Sign-in method**.
+3. Click **Email/Password** $\rightarrow$ Toggle **Enable** to **ON** $\rightarrow$ Click **Save**.
+*(Our FastAPI backend securely handles login and signup directly via Firestore `users/{userId}` with demo accounts active out of the box).*
 
 ---
 

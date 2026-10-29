@@ -13,7 +13,7 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, description="Descriptive project name")
     initial_cost: float = Field(..., gt=0, description="Upfront initial investment cost (Year 0 outlay)")
     cash_flows: List[float] = Field(..., min_length=1, description="Year-by-year expected cash inflows [Year 1, Year 2, ...]")
-    risk_category: RiskCategory = Field(RiskCategory.MEDIUM, description="Assessed risk tier (Low, Medium, High)")
+    risk_category: Optional[RiskCategory] = Field(None, description="Assessed risk tier (Low, Medium, High). If omitted, inferred automatically via ML model.")
     industry_category: str = Field("Software", description="Industry domain (e.g. Software, CleanTech, Energy, Biotech)")
     duration_years: int = Field(..., gt=0, description="Project lifespan in years")
 

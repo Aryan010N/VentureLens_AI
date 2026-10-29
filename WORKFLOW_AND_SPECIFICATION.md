@@ -203,3 +203,75 @@ All unit tests are codified in [`tests/test_metrics.py`](tests/test_metrics.py) 
 - **Live Test Suite Execution**: [https://ffm-cie-2.onrender.com/api/test-metrics](https://ffm-cie-2.onrender.com/api/test-metrics) (Status: **200 OK**, 5/5 Hand-Checked Cases passing)
 - **API Health Check**: [https://ffm-cie-2.onrender.com/api/health](https://ffm-cie-2.onrender.com/api/health) (Status: **200 OK**)
 
+---
+
+## 🤖 7. Machine Learning Risk Inference Architecture (No Manual Guesswork)
+
+Users are not expected to know or manually guess whether a candidate initiative is "Low", "Medium", or "High" risk. VentureLens AI delegates all risk categorization to an intelligent ML pipeline trained on real Kaggle startup venture data:
+
+1. **Dataset**: `manishkc06/startup-success-prediction` (Kaggle), 923 rows, 49 financial, operational, and milestone attributes.
+2. **Inference Features**:
+   - Industry sector category (CleanTech, Software, Energy, Environmental, Healthcare, Manufacturing, FinTech, Biotech, etc.)
+   - Initial investment cost ($I_0$)
+   - Project lifespan / duration ($n$)
+   - Historical round and milestone proxies
+3. **Model**: Scikit-Learn `RandomForestClassifier` and `GradientBoostingRegressor` evaluated at $R^2 = 86.8\%$ and $\text{ROC-AUC} = 81.8\%$.
+4. **Dynamic Risk Tier Assignment**:
+   $$\text{Risk Score} = 1.0 - P(\text{Success})$$
+   - $\text{Risk Score} < 0.35 \implies \text{Low Risk}$
+   - $0.35 \le \text{Risk Score} \le 0.65 \implies \text{Medium Risk}$
+   - $\text{Risk Score} > 0.65 \implies \text{High Risk}$
+5. **UI Workflow**: The manual `Risk` dropdown is removed from candidate entry. When a project is saved, the ML engine automatically assigns its risk score and tier, visible across candidate tables and optimization results.
+
+---
+
+## 🔒 8. Firebase Architecture, Authentication & Firestore Security Rules
+
+### A. Current Status
+- **Google Cloud Firestore**: Active and connected via Firebase Admin SDK (`fm-cie-2-firebase-adminsdk-fbsvc-839ec6a3c0.json`, Project ID: `fm-cie-2`). Admin SDK has full privileged access to Firestore collections (`users`, `companies`, `projects`, `runs`).
+- **User Authentication**: Handled via backend endpoints (`/api/auth/register` and `/api/auth/login`) persisting secured bcrypt password hashes in Firestore `users/{userId}`. Demo login (`demo@venturelens.ai`) is active for instant zero-setup evaluation.
+
+### B. Enabling Native Firebase Authentication (Optional in Firebase Console)
+To manage users directly under the "Authentication" dashboard in the Firebase Console:
+1. Navigate to [Firebase Console](https://console.firebase.google.com/project/fm-cie-2/authentication).
+2. Click **Authentication** in the left sidebar $\rightarrow$ Click **Get Started** (if not already initiated).
+3. Under the **Sign-in method** tab, click **Email/Password**.
+4. Toggle **Enable** to **ON** (leave Email Link passwordless sign-in disabled).
+5. Click **Save**.
+
+### C. Recommended Firestore Security Rules (Tab: `CEP AI - Database - Rules - Firebase`)
+Paste these rules into the Firebase Console **Firestore Database $\rightarrow$ Rules** editor:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User profile collection
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    
+    // Corporate workspace, projects, and optimization run records
+    match /companies/{companyId} {
+      allow read, write: if true;
+      
+      match /projects/{projectId} {
+        allow read, write: if true;
+      }
+      
+      match /runs/{runId} {
+        allow read, write: if true;
+      }
+    }
+    
+    // Fallback: deny all other unlisted paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+```
+*Note: Because our FastAPI backend connects using the Firebase Admin SDK service account key, all backend operations bypass security rules automatically and operate without restriction.*
+
+

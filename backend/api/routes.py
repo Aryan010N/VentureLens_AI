@@ -304,9 +304,31 @@ def add_project(payload: ProjectCreate):
         else:
             payload.cash_flows = payload.cash_flows[:payload.duration_years]
 
+    # Predict Risk Score using ML model (RandomForest trained on Kaggle startup data)
+    current_risk_cat = payload.risk_category.value if payload.risk_category else "Medium"
+    risk_score, _ = predict_project_risk_and_confidence(
+        industry_category=payload.industry_category,
+        risk_category=current_risk_cat,
+        duration_years=payload.duration_years,
+        initial_cost=payload.initial_cost,
+        funding_rounds=payload.funding_rounds or 2,
+        relationships=payload.relationships or 5,
+        milestones=payload.milestones or 2,
+        age_years=payload.age_years or 3.0,
+    )
+    if risk_score < 0.35:
+        inferred_risk = "Low"
+    elif risk_score <= 0.65:
+        inferred_risk = "Medium"
+    else:
+        inferred_risk = "High"
+
     project_data = payload.model_dump()
     project_data["company_id"] = company_id
     project_data["project_id"] = project_id
+    project_data["risk_score"] = risk_score
+    if not payload.risk_category:
+        project_data["risk_category"] = inferred_risk
 
     saved = save_project(company_id, project_id, project_data)
     return ProjectResponse(**saved)
@@ -580,6 +602,15 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             duration_years=duration,
             initial_cost=cost
         )
+        if risk_score < 0.35:
+            dynamic_risk_cat = "Low"
+        elif risk_score <= 0.65:
+            dynamic_risk_cat = "Medium"
+        else:
+            dynamic_risk_cat = "High"
+
+        final_risk_cat = dynamic_risk_cat
+
         prelim_metrics = compute_project_metrics(
             initial_cost=cost,
             inflows=flows,
@@ -588,7 +619,7 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             planning_horizon=duration,
             project_id=pid,
             name=p.get("name", pid),
-            risk_category=risk_cat,
+            risk_category=final_risk_cat,
             risk_score=risk_score,
             industry_category=ind_cat,
         )
@@ -598,7 +629,7 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             "flows": flows,
             "duration": duration,
             "risk_score": risk_score,
-            "risk_category": risk_cat,
+            "risk_category": final_risk_cat,
             "industry_category": ind_cat,
             "prelim_metrics": prelim_metrics,
             "name": p.get("name", pid),
@@ -610,7 +641,7 @@ def optimize_company_portfolio(payload: OptimizationRequest):
             "initial_cost": cost,
             "npv": prelim_metrics["npv"],
             "risk_score": risk_score,
-            "risk_category": risk_cat,
+            "risk_category": final_risk_cat,
         })
 
     # 2. Run mathematical integer solver

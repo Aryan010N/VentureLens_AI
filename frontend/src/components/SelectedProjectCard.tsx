@@ -24,7 +24,6 @@ import {
   Tooltip,
   CartesianGrid,
   ReferenceLine,
-  ReferenceDot,
 } from "recharts";
 import { AllocationItem } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -368,24 +367,35 @@ export const SelectedProjectCard: React.FC<SelectedProjectCardProps> = ({
                   />
                   {/* Zero reference line where cumulative cash turns positive */}
                   <ReferenceLine y={0} stroke="#f59e0b" strokeDasharray="3 3" label={{ value: "Break-Even (₹0)", fill: "#f59e0b", fontSize: 10, position: "top" }} />
-                  {/* Payback point dot */}
-                  {project.simple_payback_years && (
-                    <ReferenceDot
-                      x={`Payback (${project.simple_payback_years.toFixed(2)}y)`}
-                      y={0}
-                      r={6}
-                      fill="#14b8a6"
-                      stroke="#ffffff"
-                      strokeWidth={2}
-                    />
-                  )}
+                  {/* Payback point dot rendered via Line dot */}
                   <Line
                     type="monotone"
                     dataKey="cumulative_cash"
                     name="Cumulative Cash"
                     stroke="#14b8a6"
                     strokeWidth={2.5}
-                    dot={{ fill: "#14b8a6", r: 3 }}
+                    dot={(props: any) => {
+                      const { cx, cy, payload, index } = props;
+                      if (!cx || !cy || isNaN(cx) || isNaN(cy)) return <g key={`spc-empty-${index}`} />;
+                      if (payload?.isPaybackPoint) {
+                        return (
+                          <g key={`spc-payback-${cx}-${cy}`}>
+                            <circle cx={cx} cy={cy} r={6} fill="#14b8a6" stroke="#ffffff" strokeWidth={2} />
+                            <text
+                              x={cx}
+                              y={cy - 10}
+                              textAnchor="middle"
+                              fill="#14b8a6"
+                              fontSize={10}
+                              fontWeight="bold"
+                            >
+                              Payback ({project.simple_payback_years?.toFixed(2)}y)
+                            </text>
+                          </g>
+                        );
+                      }
+                      return <circle key={`spc-dot-${cx}-${cy}`} cx={cx} cy={cy} r={3} fill="#14b8a6" />;
+                    }}
                     activeDot={{ r: 5 }}
                   />
                   <Line

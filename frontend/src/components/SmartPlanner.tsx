@@ -55,7 +55,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   const [cost, setCost] = useState("");
   const [annualInflow, setAnnualInflow] = useState("");
   const [duration, setDuration] = useState("5");
-  const [risk, setRisk] = useState<"Low" | "Medium" | "High">("Medium");
 
   const [formError, setFormError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -122,7 +121,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         initial_cost: costNum,
         cash_flows: flows,
         duration_years: durationNum,
-        risk_category: risk,
       });
 
       // Reset Form
@@ -130,7 +128,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
       setCost("");
       setAnnualInflow("");
       setDuration("5");
-      setRisk("Medium");
       setEditingId(null);
     } catch (err: any) {
       setFormError(err.message || "Failed to save project.");
@@ -147,7 +144,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     const firstInflow = p.cash_flows?.[0] || 0;
     setAnnualInflow(firstInflow.toString());
     setDuration((p.duration_years || 5).toString());
-    setRisk(p.risk_category || "Medium");
     window.scrollTo({ top: 300, behavior: "smooth" });
   };
 
@@ -485,44 +481,26 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               />
             </div>
 
-            {/* Duration & Risk */}
-            <div className="flex gap-2">
-              <div className="w-1/2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Years
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="15"
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  className="w-full px-2 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white text-center"
-                />
-              </div>
-
-              <div className="w-1/2">
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Risk
-                </label>
-                <select
-                  value={risk}
-                  onChange={(e) =>
-                    setRisk(e.target.value as "Low" | "Medium" | "High")
-                  }
-                  className="w-full px-1 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white text-center"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Med</option>
-                  <option value="High">High</option>
-                </select>
-              </div>
+            {/* Duration (Years) */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Duration (Years)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="15"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white text-center"
+              />
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-[11px] text-slate-500">
-              {editingId ? "Editing existing project" : "Ready to add to candidate list"}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200/60 mt-1">
+            <span className="text-[11px] text-teal-800 flex items-center gap-1.5 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+              <span>Project Risk is automatically predicted by our Machine Learning model from sector, lifespan, and capital outlay.</span>
             </span>
 
             <div className="flex items-center gap-2">
@@ -596,7 +574,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                     <th className="py-3 px-4">Investment Cost</th>
                     <th className="py-3 px-4">Annual Cash Inflow</th>
                     <th className="py-3 px-4">Duration</th>
-                    <th className="py-3 px-4">Risk Level</th>
+                    <th className="py-3 px-4">AI Risk Assessment</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -623,15 +601,16 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                             p.risk_category === "Low"
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                               : p.risk_category === "High"
                               ? "bg-rose-50 text-rose-700 border border-rose-200"
-                              : "bg-amber-50 text-amber-700 border border-amber-200"
+                              : "bg-teal-50 text-teal-800 border border-teal-200"
                           }`}
                         >
-                          {p.risk_category}
+                          <Sparkles className="w-2.5 h-2.5 text-teal-600" />
+                          <span>AI: {p.risk_category || "Inferred"}</span>
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
