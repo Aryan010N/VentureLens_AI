@@ -13,6 +13,7 @@ import {
 import { Navbar } from "@/components/Navbar";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 import { ProjectFullAnalysisModal } from "@/components/ProjectFullAnalysisModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { fetchRunHistory, fetchCompany } from "@/lib/api";
 import { OptimizationResult, AllocationItem, UserProfile } from "@/lib/types";
 
@@ -123,11 +124,13 @@ export default function ResultsPage() {
             <p className="text-xs font-semibold">Loading optimization results...</p>
           </div>
         ) : result ? (
-          <ResultsDashboard
-            result={result}
-            onOpenFullAnalysis={(proj) => setSelectedProject(proj)}
-            discountRate={discountRate}
-          />
+          <ErrorBoundary fallbackTitle="Error displaying Results Dashboard">
+            <ResultsDashboard
+              result={result}
+              onOpenFullAnalysis={(proj) => setSelectedProject(proj)}
+              discountRate={discountRate}
+            />
+          </ErrorBoundary>
         ) : (
           <div className="card-clean rounded-2xl p-12 text-center text-slate-500 space-y-4">
             <PieChart className="w-10 h-10 text-slate-400 mx-auto" />
@@ -147,12 +150,17 @@ export default function ResultsPage() {
         )}
       </main>
 
-      {/* Full Analysis Modal */}
-      <ProjectFullAnalysisModal
-        project={selectedProject}
-        onClose={() => setSelectedProject(null)}
-        discountRate={discountRate}
-      />
+      {/* Full Analysis Modal wrapped in ErrorBoundary */}
+      <ErrorBoundary
+        fallbackTitle="Unable to display Full Project Analysis"
+        onReset={() => setSelectedProject(null)}
+      >
+        <ProjectFullAnalysisModal
+          project={selectedProject}
+          onClose={() => setSelectedProject(null)}
+          discountRate={discountRate}
+        />
+      </ErrorBoundary>
 
       <footer className="bg-white border-t border-slate-200 mt-16 py-8 text-center text-xs text-slate-500">
         VentureLens AI — PuLP Mathematical Knapsack Optimization & Deterministic Capital Allocation
