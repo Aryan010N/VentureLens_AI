@@ -206,7 +206,7 @@ All models are trained strictly on real data with **NO hardcoded weights**:
 
 ### Live Model Training Execution
 Model training is completely dynamic and can be triggered in 3 ways:
-1. **Interactive UI**: Click **"Retrain AI Models (Kaggle Dataset)"** in the top hero banner to retrain models live and observe immediate $R^2$ and ROC-AUC updates.
+1. **Interactive UI**: View model metrics or trigger on-demand retraining under **Tests & Proofs (`/testing`)** or **Account (`/account`)**, keeping the main Budget Planner dashboard ultra-clean and distraction-free.
 2. **REST API**: Call `POST /api/train-models` or `GET /api/train-models` on the FastAPI backend.
 3. **CLI Script**: Run `python backend/ml/train.py` from the project root.
 

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { fetchTestMetrics } from "@/lib/api";
 import { TestMetricsResponse, TestCaseResult } from "@/lib/types";
+import { AIModelCard } from "@/components/AIModelCard";
 
 // Hand-checked test definitions
 const HAND_CHECKED_SPECS: TestCaseResult[] = [
@@ -308,6 +309,18 @@ export default function TestingPage() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Machine Learning Model Verification & Kaggle Training Citation */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-teal-600" />
+              Machine Learning Model Verification & Kaggle Citation
+            </h3>
+            <span className="text-xs text-slate-500 font-mono">Live Serialized Inference</span>
+          </div>
+          <AIModelCard />
         </div>
       </main>
 

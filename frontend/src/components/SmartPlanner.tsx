@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { CompanyData, ProjectData } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
-import { AIModelCard } from "@/components/AIModelCard";
 
 interface SmartPlannerProps {
   company: CompanyData;
@@ -646,11 +645,6 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             </div>
           )}
         </div>
-      </section>
-
-      {/* Machine Learning Model and Kaggle Dataset Transparency */}
-      <section>
-        <AIModelCard />
       </section>
 
       {/* SECTION C: Analyze Projects Prominent Button */}
