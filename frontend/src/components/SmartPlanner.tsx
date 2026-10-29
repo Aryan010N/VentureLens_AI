@@ -17,6 +17,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Info,
+  Layers,
+  TrendingUp,
 } from "lucide-react";
 import { CompanyData, ProjectData } from "@/lib/types";
 import { formatINR } from "@/lib/utils";
@@ -49,7 +51,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   isAnalyzing,
   onSaveCompany,
 }) => {
-  // New Project Form State
+  // New Project Form State (Clean Slate)
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("CleanTech");
   const [cost, setCost] = useState("");
@@ -98,7 +100,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
       return;
     }
 
-    // Deduplication check: prevent adding multiple candidate projects with identical names
+    // Deduplication check
     const duplicate = projects.find(
       (p) =>
         p.name.trim().toLowerCase() === name.trim().toLowerCase() &&
@@ -123,7 +125,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         duration_years: durationNum,
       });
 
-      // Reset Form
+      // Reset Form to clean state
       setName("");
       setCost("");
       setAnnualInflow("");
@@ -144,7 +146,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     const firstInflow = p.cash_flows?.[0] || 0;
     setAnnualInflow(firstInflow.toString());
     setDuration((p.duration_years || 5).toString());
-    window.scrollTo({ top: 300, behavior: "smooth" });
+    window.scrollTo({ top: 320, behavior: "smooth" });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,30 +160,37 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Page Title & Subtitle */}
-      <div className="text-center max-w-3xl mx-auto space-y-2">
-        <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
-          Smart Investment Planner
+    <div className="space-y-8 animate-fade-up">
+      {/* Header with Subtle Micro-Badge */}
+      <div className="text-center max-w-3xl mx-auto space-y-3 pt-2">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 text-teal-300 text-xs font-semibold tracking-wide shadow-sm">
+          <Sparkles className="w-3.5 h-3.5 text-teal-400 animate-pulse" />
+          <span>VentureLens AI · Mathematical Knapsack & Machine Learning</span>
+        </div>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight">
+          Smart Investment{" "}
+          <span className="bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
+            Planner
+          </span>
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 font-medium">
-          Enter your budget and projects. VentureLens AI will identify the most valuable investment opportunities.
+        <p className="text-sm sm:text-base text-slate-600 font-medium max-w-xl mx-auto">
+          Enter your budget and project proposals. Our PuLP binary optimizer identifies the combination that maximizes shareholder value.
         </p>
       </div>
 
       {/* SECTION A: Enter Your Budget */}
-      <section className="card-clean rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+      <section className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 transition-all duration-300 hover:border-slate-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center">
-              <Wallet className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-900 to-teal-800 text-white flex items-center justify-center shadow-md">
+              <Wallet className="w-5 h-5 text-teal-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
-                A. Enter Your Budget
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                A. Investment Budget & Constraints
               </h2>
               <p className="text-xs text-slate-500">
-                Define your corporate investment capital, risk appetite, and liquidity floor.
+                Define your capital ceiling, liquidity reserve, and hurdle rate.
               </p>
             </div>
           </div>
@@ -189,10 +198,10 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
           <button
             type="button"
             onClick={onLoadSpecDemo}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition-colors"
+            className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 hover:border-teal-300 transition-all shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-            Load Spec Example (₹20L)
+            <span>Load Spec Example (₹20L)</span>
           </button>
         </div>
 
@@ -200,7 +209,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Total Budget */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
               Total Budget (₹)
             </label>
             <div className="relative">
@@ -208,88 +217,88 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                 type="number"
                 min="0"
                 step="50000"
-                value={company.total_investment_budget}
+                value={company.total_investment_budget > 0 ? company.total_investment_budget : ""}
                 onChange={(e) =>
                   handleBudgetChange(
                     "total_investment_budget",
                     parseFloat(e.target.value) || 0
                   )
                 }
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold text-slate-900 bg-white"
+                placeholder="e.g. 2000000"
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm placeholder:text-slate-400 placeholder:font-normal"
               />
             </div>
             <span className="text-[11px] text-teal-700 font-semibold mt-1 block">
-              {formatINR(company.total_investment_budget)}
+              {company.total_investment_budget > 0 ? formatINR(company.total_investment_budget) : "Enter investment capital"}
             </span>
           </div>
 
           {/* Min Cash Reserve */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Minimum Cash Reserve (₹)
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Minimum Reserve (₹)
             </label>
             <input
               type="number"
               min="0"
               step="50000"
-              value={company.min_cash_reserve}
+              value={company.min_cash_reserve > 0 ? company.min_cash_reserve : ""}
               onChange={(e) =>
                 handleBudgetChange(
                   "min_cash_reserve",
                   parseFloat(e.target.value) || 0
                 )
               }
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold text-slate-900 bg-white"
+              placeholder="e.g. 200000 (optional)"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm placeholder:text-slate-400 placeholder:font-normal"
             />
             <span className="text-[11px] text-amber-700 font-semibold mt-1 block">
-              {formatINR(company.min_cash_reserve)} (Protected)
+              {company.min_cash_reserve > 0 ? `${formatINR(company.min_cash_reserve)} (Protected)` : "Optional liquidity buffer"}
             </span>
           </div>
 
           {/* Discount Rate */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Cost of Capital / Hurdle (%)
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Hurdle Rate / WACC (%)
             </label>
-            <div className="relative">
-              <input
-                type="number"
-                min="1"
-                max="50"
-                step="0.5"
-                value={
-                  company.discount_rate <= 1.0
-                    ? Number((company.discount_rate * 100).toFixed(1))
-                    : company.discount_rate
-                }
-                onChange={(e) =>
-                  handleBudgetChange(
-                    "discount_rate",
-                    (parseFloat(e.target.value) || 12) / 100.0
-                  )
-                }
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold text-slate-900 bg-white"
-              />
-            </div>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              step="0.5"
+              value={
+                company.discount_rate <= 1.0
+                  ? Number((company.discount_rate * 100).toFixed(1))
+                  : company.discount_rate
+              }
+              onChange={(e) =>
+                handleBudgetChange(
+                  "discount_rate",
+                  (parseFloat(e.target.value) || 12) / 100.0
+                )
+              }
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
+            />
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Default 12% WACC
+              Standard 12.0% Cost of Capital
             </span>
           </div>
 
           {/* Planning Horizon */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
-              Planning Horizon (Years)
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Planning Horizon
             </label>
             <select
-              value={company.planning_period_years}
+              value={company.planning_period_years || 5}
               onChange={(e) =>
                 handleBudgetChange(
                   "planning_period_years",
                   parseInt(e.target.value) || 5
                 )
               }
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold text-slate-900 bg-white"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
             >
               <option value={3}>3 Years</option>
               <option value={5}>5 Years (Standard)</option>
@@ -297,83 +306,75 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               <option value={10}>10 Years</option>
             </select>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Multi-year lifespan
+              Forecast evaluation period
             </span>
           </div>
 
-          {/* Risk Level */}
+          {/* Risk Ceiling */}
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
               Max Portfolio Risk
             </label>
             <select
-              value={company.max_acceptable_risk}
+              value={company.max_acceptable_risk || "Medium"}
               onChange={(e) =>
                 handleBudgetChange(
                   "max_acceptable_risk",
                   e.target.value as "Low" | "Medium" | "High"
                 )
               }
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold text-slate-900 bg-white"
+              className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-bold text-slate-900 bg-white transition-all shadow-sm"
             >
-              <option value="Low">Low Risk</option>
-              <option value="Medium">Medium Risk</option>
-              <option value="High">High Risk</option>
+              <option value="Low">Low Risk Only</option>
+              <option value="Medium">Medium Risk (Balanced)</option>
+              <option value="High">High Risk (Growth)</option>
             </select>
             <span className="text-[11px] text-slate-500 mt-1 block">
-              Tolerance ceiling
+              Portfolio risk constraint ceiling
             </span>
           </div>
         </div>
 
-        {/* Clear Capital Breakdown Indicator */}
-        <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm">
+        {/* Sleek Live Capital Allocation Ribbon */}
+        <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-xs">
+          <div className="flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Total Budget:</span>
-              <span className="font-extrabold text-slate-900">
+              <span className="text-slate-500 font-medium">Total Capital:</span>
+              <span className="font-extrabold text-slate-900 text-sm">
                 {formatINR(totalBudget)}
               </span>
             </div>
-
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Minimum Cash Reserve:</span>
-              <span className="font-extrabold text-amber-700">
+              <span className="text-slate-500 font-medium">Protected Reserve:</span>
+              <span className="font-bold text-amber-700 text-sm">
                 {formatINR(minReserve)}
               </span>
             </div>
-
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900">
-              <span className="font-semibold text-emerald-700">
-                Available for Investment:
-              </span>
-              <span className="font-black text-emerald-800 text-sm sm:text-base">
-                {formatINR(availableForInvestment)}
-              </span>
-            </div>
           </div>
-          <p className="text-[11px] text-slate-500 mt-2 flex items-center gap-1.5">
-            <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span>
-              The minimum cash reserve of {formatINR(minReserve)} is protected as a corporate liquidity floor and is not counted as investable capital.
+
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-medium text-emerald-700">Available for Investment:</span>
+            <span className="font-black text-emerald-900 text-sm">
+              {formatINR(availableForInvestment)}
             </span>
-          </p>
+          </div>
         </div>
       </section>
 
       {/* SECTION B: Add Your Projects */}
-      <section className="card-clean rounded-2xl p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+      <section className="glass-panel rounded-2xl p-6 sm:p-8 space-y-6 transition-all duration-300 hover:border-slate-300">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center">
-              <Coins className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-900 to-teal-800 text-white flex items-center justify-center shadow-md">
+              <Coins className="w-5 h-5 text-teal-300" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
                 B. Add Your Projects
               </h2>
               <p className="text-xs text-slate-500">
-                Register candidate initiatives with basic costs and expected annual inflows.
+                Register candidate initiatives with required capital and expected annual returns.
               </p>
             </div>
           </div>
@@ -383,13 +384,13 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
             <button
               type="button"
               onClick={onLoadSpecDemo}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition-colors flex items-center gap-1.5 shadow-sm"
             >
               <Sparkles className="w-3.5 h-3.5 text-teal-600" />
               <span>Load Spec 4 Projects</span>
             </button>
 
-            <label className="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors flex items-center gap-1.5">
+            <label className="cursor-pointer px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-1.5 shadow-sm">
               <UploadCloud className="w-3.5 h-3.5 text-slate-500" />
               <span>Upload CSV</span>
               <input
@@ -403,15 +404,15 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         </div>
 
         {/* Project Entry Form */}
-        <form onSubmit={handleAddOrUpdateProject} className="space-y-4 bg-slate-50 p-5 rounded-xl border border-slate-200">
+        <form onSubmit={handleAddOrUpdateProject} className="space-y-4 bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80">
           {formError && (
-            <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{formError}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Project Name */}
             <div className="lg:col-span-2">
               <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -423,7 +424,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Solar installation"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
               />
             </div>
 
@@ -435,7 +436,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               <select
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm"
               >
                 <option value="CleanTech">CleanTech</option>
                 <option value="Software">Software</option>
@@ -459,8 +460,8 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                 step="10000"
                 value={cost}
                 onChange={(e) => setCost(e.target.value)}
-                placeholder="800000"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white"
+                placeholder="e.g. 800000"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
               />
             </div>
 
@@ -476,31 +477,16 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                 step="10000"
                 value={annualInflow}
                 onChange={(e) => setAnnualInflow(e.target.value)}
-                placeholder="300000"
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white"
-              />
-            </div>
-
-            {/* Duration (Years) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Duration (Years)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="15"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full px-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-semibold text-slate-900 bg-white text-center"
+                placeholder="e.g. 300000"
+                className="w-full px-3.5 py-2.5 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 font-semibold text-slate-900 bg-white shadow-sm placeholder:text-slate-400"
               />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-200/60 mt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-200/60 mt-1">
             <span className="text-[11px] text-teal-800 flex items-center gap-1.5 font-medium">
               <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-              <span>Project Risk is automatically predicted by our Machine Learning model from sector, lifespan, and capital outlay.</span>
+              <span>Project Risk is automatically predicted by Machine Learning based on industry sector, duration, and outlay.</span>
             </span>
 
             <div className="flex items-center gap-2">
@@ -513,7 +499,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                     setCost("");
                     setAnnualInflow("");
                   }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200"
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors"
                 >
                   Cancel
                 </button>
@@ -522,7 +508,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
               <button
                 type="submit"
                 disabled={isAdding}
-                className="px-4 py-2 rounded-lg text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition-colors shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-teal-700 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 btn-premium"
               >
                 <PlusCircle className="w-4 h-4 text-teal-400" />
                 <span>{editingId ? "Save Changes" : "Add Project"}</span>
@@ -534,13 +520,16 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
         {/* Added Projects Table */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-800">
-              Candidate Projects ({projects.length})
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Layers className="w-4 h-4 text-teal-600" />
+              <span>Candidate Projects ({projects.length})</span>
             </h3>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500">
-                Total Requested: {formatINR(projects.reduce((acc, p) => acc + p.initial_cost, 0))}
-              </span>
+              {projects.length > 0 && (
+                <span className="text-xs text-slate-500">
+                  Total Requested: <strong>{formatINR(projects.reduce((acc, p) => acc + p.initial_cost, 0))}</strong>
+                </span>
+              )}
               {projects.length > 0 && onClearAllProjects && (
                 <button
                   type="button"
@@ -555,19 +544,32 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
           </div>
 
           {projects.length === 0 ? (
-            <div className="p-8 text-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-slate-500 space-y-2">
-              <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto" />
-              <p className="text-xs font-semibold">
-                No projects added yet.
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Use the form above to add projects, upload a CSV, or click "Load Spec 4 Projects" for instant setup.
-              </p>
+            /* Clean Slate for New Users */
+            <div className="p-10 text-center rounded-2xl border-2 border-dashed border-slate-200 bg-white space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center mx-auto shadow-sm">
+                <FileSpreadsheet className="w-6 h-6" />
+              </div>
+              <div className="max-w-md mx-auto space-y-1">
+                <h4 className="text-sm font-bold text-slate-900">
+                  No Candidate Projects Registered Yet
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Your candidate portfolio is clean. Use the entry form above to register projects, or click below to load the textbook worked example.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onLoadSpecDemo}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-teal-700 transition-all shadow-sm"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                <span>Load Spec 4 Projects (₹20L Demo)</span>
+              </button>
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-4">Project Name</th>
                     <th className="py-3 px-4">Sector</th>
@@ -578,7 +580,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 bg-white">
+                <tbody className="divide-y divide-slate-100 font-medium">
                   {projects.map((p, idx) => (
                     <tr
                       key={p.project_id || idx}
@@ -588,12 +590,14 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                         {p.name}
                       </td>
                       <td className="py-3 px-4 text-slate-600">
-                        {p.industry_category || "General"}
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                          {p.industry_category || "General"}
+                        </span>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900">
                         {formatINR(p.initial_cost)}
                       </td>
-                      <td className="py-3 px-4 text-teal-700 font-medium">
+                      <td className="py-3 px-4 text-teal-700 font-bold">
                         {formatINR(p.cash_flows?.[0] || 0)} / yr
                       </td>
                       <td className="py-3 px-4 text-slate-600">
@@ -619,7 +623,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                             type="button"
                             onClick={() => handleEditClick(p)}
                             title="Edit"
-                            className="p-1.5 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -629,7 +633,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
                               p.project_id && onRemoveProject(p.project_id)
                             }
                             title="Remove"
-                            className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -655,7 +659,7 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
           type="button"
           disabled={isAnalyzing || projects.length === 0}
           onClick={onAnalyze}
-          className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl text-base sm:text-lg font-black text-white bg-gradient-to-r from-slate-900 via-teal-800 to-slate-900 hover:from-slate-800 hover:to-slate-800 shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          className="inline-flex items-center justify-center gap-3 px-10 py-4 rounded-2xl text-base sm:text-lg font-black text-white bg-gradient-to-r from-slate-950 via-teal-900 to-slate-900 hover:from-teal-900 hover:to-slate-900 shadow-xl hover:shadow-2xl hover:shadow-teal-500/20 transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
           {isAnalyzing ? (
             <>
@@ -677,4 +681,3 @@ export const SmartPlanner: React.FC<SmartPlannerProps> = ({
     </div>
   );
 };
-

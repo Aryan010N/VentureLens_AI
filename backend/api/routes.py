@@ -103,13 +103,13 @@ def register_user(payload: UserRegisterRequest):
     user_id = f"user_{uuid.uuid4().hex[:10]}"
     company_id = f"comp_{uuid.uuid4().hex[:8]}"
 
-    # Initialize company defaults
+    # Initialize company defaults (clean slate for newly registered investors)
     default_company = {
         "company_id": company_id,
-        "name": payload.company_name or "My Venture Portfolio",
-        "total_investment_budget": 2000000.0,
-        "min_cash_reserve": 200000.0,
-        "loan_facility": 500000.0,
+        "name": payload.company_name or f"{payload.name.strip()}'s Portfolio",
+        "total_investment_budget": 0.0,
+        "min_cash_reserve": 0.0,
+        "loan_facility": 0.0,
         "discount_rate": 0.12,
         "planning_period_years": 5,
         "max_acceptable_risk": "Medium",

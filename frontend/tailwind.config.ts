@@ -39,6 +39,36 @@ const config: Config = {
       boxShadow: {
         "teal-glow": "0 0 25px -5px rgba(20, 184, 166, 0.25)",
         "teal-sm": "0 0 15px -3px rgba(20, 184, 166, 0.3)",
+        "premium": "0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.03)",
+        "premium-hover": "0 20px 40px -15px rgba(13, 148, 136, 0.15), 0 8px 12px -3px rgba(15, 23, 42, 0.05)",
+      },
+      keyframes: {
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        fadeIn: {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        fadeUp: {
+          from: { opacity: "0", transform: "translateY(14px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        floatSlow: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        pulseGlow: {
+          "0%, 100%": { opacity: "0.6", transform: "scale(1)" },
+          "50%": { opacity: "1", transform: "scale(1.02)" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 2.5s infinite",
+        "fade-in": "fadeIn 0.35s ease-out forwards",
+        "fade-up": "fadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "float-slow": "floatSlow 4s ease-in-out infinite",
+        "pulse-glow": "pulseGlow 2.5s ease-in-out infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

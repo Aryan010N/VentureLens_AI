@@ -28,11 +28,12 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [company, setCompany] = useState<CompanyData>({
-    company_id: DEFAULT_COMPANY_ID,
-    total_investment_budget: 2000000,
-    min_cash_reserve: 200000,
-    loan_facility: 500000,
+    company_id: "",
+    total_investment_budget: 0,
+    min_cash_reserve: 0,
+    loan_facility: 0,
     discount_rate: 0.12,
     planning_period_years: 5,
     max_acceptable_risk: "Medium",
@@ -42,6 +43,29 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectData[]>([]);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+
+  // Load data strictly for the authenticated company (isolates new user from demo company)
+  const loadDataForCompany = useCallback(async (compId: string) => {
+    if (!compId) return;
+    setIsLoading(true);
+    try {
+      const comp = await fetchCompany(compId).catch(() => null);
+      if (comp) {
+        setCompany(comp);
+      } else {
+        setCompany((prev) => ({ ...prev, company_id: compId }));
+      }
+
+      const projs = await fetchProjects(compId).catch(() => []);
+      // Strictly set projects to the actual projects of this company (empty [] for brand new users!)
+      setProjects(Array.isArray(projs) ? projs : []);
+    } catch (err) {
+      console.warn("Error loading dashboard data:", err);
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Initialize User with AuthGuard
   useEffect(() => {
@@ -60,32 +84,16 @@ export default function DashboardPage() {
           return;
         }
         setUser(u);
-        setCompany((prev) => ({ ...prev, company_id: u.company_id || DEFAULT_COMPANY_ID }));
+        const compId = u.company_id || DEFAULT_COMPANY_ID;
+        setCompany((prev) => ({ ...prev, company_id: compId }));
+        // Load data strictly for this authenticated user's company!
+        loadDataForCompany(compId);
       } catch (e) {
         localStorage.removeItem("venturelens_user");
         router.push("/login");
       }
     }
-  }, [router]);
-
-  const loadData = useCallback(async () => {
-    const compId = user?.company_id || DEFAULT_COMPANY_ID;
-    try {
-      const comp = await fetchCompany(compId).catch(() => null);
-      if (comp) setCompany(comp);
-
-      const projs = await fetchProjects(compId).catch(() => []);
-      if (projs && projs.length > 0) {
-        setProjects(projs);
-      }
-    } catch (err) {
-      console.warn("Error loading dashboard data:", err);
-    }
-  }, [user?.company_id]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  }, [router, loadDataForCompany]);
 
   // Company parameter update
   const handleSaveCompany = async (updated: Partial<CompanyData>) => {
