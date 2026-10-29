@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import {
   X,
   TrendingUp,
@@ -62,8 +62,8 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
   const initialOutlay = safeNum(project.total_investment, initialCost);
   const lifespan = safeNum(project.lifespan, 5);
 
-  // Synthesize or normalize year-by-year points
-  const displayTableRows = useMemo(() => {
+  // Synthesize or normalize year-by-year points (deterministic calculation without conditional hook)
+  const displayTableRows: YearByYearPoint[] = (() => {
     let rows: YearByYearPoint[] = [];
 
     if (Array.isArray(project.year_by_year_table) && project.year_by_year_table.length > 0) {
@@ -114,7 +114,7 @@ export const ProjectFullAnalysisModal: React.FC<ProjectFullAnalysisModalProps> =
     }
 
     return rows.sort((a, b) => a.year - b.year);
-  }, [project.year_by_year_table, initialOutlay, project.total_benefits, lifespan, dRate]);
+  })();
 
   // Numerical values for metrics cards
   const totalBenefits = safeNum(project.total_benefits, 0);

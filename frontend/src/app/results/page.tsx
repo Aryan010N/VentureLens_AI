@@ -151,16 +151,18 @@ export default function ResultsPage() {
       </main>
 
       {/* Full Analysis Modal wrapped in ErrorBoundary */}
-      <ErrorBoundary
-        fallbackTitle="Unable to display Full Project Analysis"
-        onReset={() => setSelectedProject(null)}
-      >
-        <ProjectFullAnalysisModal
-          project={selectedProject}
-          onClose={() => setSelectedProject(null)}
-          discountRate={discountRate}
-        />
-      </ErrorBoundary>
+      {selectedProject && (
+        <ErrorBoundary
+          fallbackTitle="Unable to display Full Project Analysis"
+          onReset={() => setSelectedProject(null)}
+        >
+          <ProjectFullAnalysisModal
+            project={selectedProject}
+            onClose={() => setSelectedProject(null)}
+            discountRate={discountRate}
+          />
+        </ErrorBoundary>
+      )}
 
       <footer className="bg-white border-t border-slate-200 mt-16 py-8 text-center text-xs text-slate-500">
         VentureLens AI — PuLP Mathematical Knapsack Optimization & Deterministic Capital Allocation
